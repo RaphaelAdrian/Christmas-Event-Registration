@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets: never commit these
+.env
+.env.local
+.env.*.local
+
+# Local tooling
+.vercel/
+.taste-skill/
+.DS_Store
+npm-debug.log*
+test-results/

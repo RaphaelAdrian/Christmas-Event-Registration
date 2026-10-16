@@ -1,0 +1,123 @@
+/* A lanyard pass: navy head, white body, orange band. The slot is cut in the
+   colour of whatever it hangs on (--pass-ground). */
+.pass {
+  container-type: inline-size;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 54 / 86;
+  margin: 0;
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--navy);
+}
+
+.large {
+  max-width: 400px;
+}
+
+.slot {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 22%;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--pass-ground, var(--sky));
+  z-index: 1;
+}
+
+.head {
+  display: grid;
+  gap: 6px;
+  padding: 48px 8% 22px;
+  border-radius: 18px 18px 0 0;
+  background: var(--navy);
+  color: var(--paper);
+}
+
+.event {
+  font-size: var(--step-lead);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.when {
+  font-size: var(--step-small);
+  color: #b9d9f5;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 9% 8% 7%;
+  min-width: 0;
+}
+
+.name {
+  font-size: clamp(28px, 11.5cqi, 46px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  overflow-wrap: anywhere;
+  transition: color var(--t-fast) ease;
+}
+
+.company {
+  margin-top: 12px;
+  font-size: var(--step-body);
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.job {
+  margin-top: 2px;
+  font-size: clamp(14px, 4.6cqi, 17px);
+  color: var(--navy-soft);
+  overflow-wrap: anywhere;
+}
+
+.placeholder {
+  color: #5a748a;
+}
+
+.foot {
+  display: grid;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.refLabel {
+  font-size: var(--step-small);
+  color: var(--navy-soft);
+}
+
+.ref {
+  font-size: clamp(26px, 10cqi, 40px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.note {
+  margin-top: 8px;
+  font-size: var(--step-small);
+  font-weight: 500;
+  color: var(--navy-soft);
+}
+
+.band {
+  padding: 14px 8%;
+  border-radius: 0 0 18px 18px;
+  background: var(--orange);
+  color: var(--navy);
+  font-size: clamp(16px, 5.4cqi, 20px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
