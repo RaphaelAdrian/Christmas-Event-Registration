@@ -240,6 +240,10 @@
   background: #f7fbff;
 }
 
+.table :global(.btn) {
+  white-space: nowrap;
+}
+
 .ref {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
