@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const COLUMNS =
-  "id, reference_code, full_name, email, mobile, company, job_title, status, payment_reference, receipt_path, invited_at, registered_at, paid_at, cancelled_at, created_at";
+  "id, reference_code, first_name, last_name, full_name, name_as_entered, email, mobile, company, job_title, status, payment_reference, receipt_path, invited_at, registered_at, paid_at, cancelled_at, created_at";
 
 /** GET /admin/export: downloads every attendee as an Excel file (admins only). */
 export async function GET() {
@@ -21,7 +21,8 @@ export async function GET() {
       .from("attendees")
       .select(COLUMNS)
       .order("registered_at", { ascending: true, nullsFirst: false })
-      .order("full_name", { ascending: true })
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true })
       .range(from, from + page - 1);
     if (error) return new Response("Couldn't read the attendee list. Try again.", { status: 500 });
     rows.push(...((data ?? []) as Attendee[]));

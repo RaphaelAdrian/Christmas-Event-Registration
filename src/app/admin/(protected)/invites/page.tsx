@@ -1,3 +1,4 @@
+import { event } from "@/config/event";
 import { requireAdmin } from "@/lib/admin";
 import { formatDateTimePH } from "@/lib/format";
 import { STATUS_LABELS, type AttendeeStatus } from "@/lib/statuses";
@@ -8,12 +9,22 @@ export default async function InvitesPage() {
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("attendees")
-    .select("id, full_name, email, status, invited_at")
+    .select("id, first_name, last_name, full_name, name_as_entered, email, status, invited_at")
     .not("invited_at", "is", null)
-    .order("invited_at", { ascending: false })
-    .limit(2000);
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true })
+    .limit(5000);
 
-  const rows = (data ?? []) as { id: string; full_name: string; email: string; status: AttendeeStatus; invited_at: string }[];
+  const rows = (data ?? []) as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    name_as_entered: string | null;
+    email: string | null;
+    status: AttendeeStatus;
+    invited_at: string;
+  }[];
   const waiting = rows.filter((r) => r.status === "invited").length;
 
   return (
@@ -21,8 +32,10 @@ export default async function InvitesPage() {
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>Invite list</h1>
         <p className={styles.pageNote}>
-          When an invited person registers with the same email, their status changes from Invited to Confirmed by
-          itself. Send each person their own invite link so the form opens with their email filled in.
+          {event.inviteOnly ? "Only people on this list can register. " : ""}
+          A registration matches someone here when the last name is the same and the first name fits: &ldquo;Jai
+          Plantig&rdquo; matches &ldquo;Jairus Miguel Plantig&rdquo;. Their status then changes from Invited to
+          Confirmed, and a name that is already registered can&rsquo;t register again.
         </p>
       </div>
 
@@ -38,7 +51,8 @@ export default async function InvitesPage() {
             Import a list
           </h2>
           <p className={styles.blockNote}>
-            An Excel (.xlsx) or CSV file with a Name column and an Email column. People already on the list are skipped.{" "}
+            An Excel (.xlsx) or CSV file with First name and Last name columns (Email is optional), or a single Name
+            column. People already on the list are skipped.{" "}
             <a href="/admin/invites-template" download>
               Download a CSV template
             </a>
@@ -70,8 +84,13 @@ export default async function InvitesPage() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td className={styles.name}>{r.full_name || <span className={styles.muted}>No name</span>}</td>
-                    <td>{r.email}</td>
+                    <td className={styles.nameCell}>
+                      <span className={styles.name}>{r.full_name || <span className={styles.muted}>No name</span>}</span>
+                      {r.name_as_entered && r.name_as_entered.toLowerCase() !== r.full_name.toLowerCase() ? (
+                        <span className={styles.sub}>Registered as {r.name_as_entered}</span>
+                      ) : null}
+                    </td>
+                    <td>{r.email ?? <span className={styles.muted}>None</span>}</td>
                     <td>
                       <span className={styles.chip} data-status={r.status}>
                         {STATUS_LABELS[r.status]}
@@ -79,7 +98,13 @@ export default async function InvitesPage() {
                     </td>
                     <td className={styles.nowrap}>{formatDateTimePH(r.invited_at)}</td>
                     <td>
-                      <InviteActions id={r.id} name={r.full_name} email={r.email} canRemove={r.status === "invited"} />
+                      <InviteActions
+                        id={r.id}
+                        firstName={r.first_name}
+                        lastName={r.last_name}
+                        email={r.email}
+                        canRemove={r.status === "invited"}
+                      />
                     </td>
                   </tr>
                 ))}

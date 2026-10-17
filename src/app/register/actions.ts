@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { event } from "@/config/event";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ipKey } from "@/lib/request";
+import { outcomeMessage } from "@/lib/registrant";
 import {
   FIELD_STEP,
   RECEIPT_TYPES,
@@ -20,7 +21,6 @@ const TOO_MANY: Failure = {
   ok: false,
   error: "Too many attempts from this connection. Wait 10 minutes, then try again.",
 };
-const DUPLICATE_MESSAGE = `This email is already registered. To change your registration, write to ${event.contact.email}.`;
 
 async function allowed(scope: string, limit: number, windowSeconds = 600) {
   const supabase = createServiceClient();
@@ -36,20 +36,40 @@ async function allowed(scope: string, limit: number, windowSeconds = 600) {
   return data === true;
 }
 
-/** Step 1: warn early if the email already has a registration, before anyone pays or uploads. */
-export async function checkEmail(email: string): Promise<{ ok: true; registered: boolean } | Failure> {
+/**
+ * Step 1: check the name against the invite list (and the email against
+ * existing registrations) before anyone pays or uploads a receipt.
+ * The final submit repeats the same check inside the database.
+ */
+export async function checkRegistrant(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+}): Promise<{ ok: true } | Failure> {
   if (!event.registrationOpen) return CLOSED;
-  const parsed = detailsSchema.shape.email.safeParse(email);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
-  if (!(await allowed("check-email", 30))) return TOO_MANY;
+  const parsed = detailsSchema.pick({ firstName: true, lastName: true, email: true }).safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Some details need fixing.", fieldErrors: fieldErrors(parsed.error), step: 0 };
+  }
+  if (!(await allowed("check-name", 30))) return TOO_MANY;
 
   const supabase = createServiceClient();
-  const { data, error } = await supabase.rpc("email_is_registered", { p_email: parsed.data });
+  const { data, error } = await supabase.rpc("resolve_registrant", {
+    p_first_name: parsed.data.firstName,
+    p_last_name: parsed.data.lastName,
+    p_email: parsed.data.email,
+    p_invite_only: event.inviteOnly,
+  });
   if (error) {
-    console.error("email check failed", error.message);
-    return { ok: true, registered: false }; // the final submit still blocks duplicates
+    console.error("invite check failed", error.message);
+    return { ok: false, error: "We couldn't check the invite list just now. Try again in a minute." };
   }
-  return { ok: true, registered: data === true };
+  const outcome = String((Array.isArray(data) ? data[0] : data)?.outcome ?? "");
+  if (outcome === "INVITED" || outcome === "NEW") return { ok: true };
+
+  const problem = outcomeMessage(outcome);
+  if (!problem) return { ok: false, error: "We couldn't check the invite list just now. Try again in a minute." };
+  return { ok: false, error: problem.message, fieldErrors: { [problem.field]: problem.message }, step: 0 };
 }
 
 /** Step 4: give the browser a one-time link to upload the receipt straight into the private bucket. */
@@ -102,7 +122,8 @@ export async function submitRegistration(
 
   const supabase = createServiceClient();
   const { data, error } = await supabase.rpc("register_attendee", {
-    p_full_name: r.fullName,
+    p_first_name: r.firstName,
+    p_last_name: r.lastName,
     p_email: r.email,
     p_mobile: r.mobile,
     p_company: r.company,
@@ -110,12 +131,15 @@ export async function submitRegistration(
     p_payment_reference: r.paymentReference,
     p_receipt_path: r.receiptPath,
     p_reference_prefix: event.referencePrefix,
+    p_invite_only: event.inviteOnly,
   });
 
   if (error) {
+    const problem = outcomeMessage(error.message);
+    if (problem) {
+      return { ok: false, error: problem.message, fieldErrors: { [problem.field]: problem.message }, step: 0 };
+    }
     switch (error.message) {
-      case "DUPLICATE_EMAIL":
-        return { ok: false, error: DUPLICATE_MESSAGE, fieldErrors: { email: DUPLICATE_MESSAGE }, step: 0 };
       case "RECEIPT_NOT_FOUND":
       case "RECEIPT_ALREADY_USED":
         return {

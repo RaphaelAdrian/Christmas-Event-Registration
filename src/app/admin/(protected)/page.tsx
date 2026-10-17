@@ -8,7 +8,7 @@ import styles from "../admin.module.css";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const COLUMNS =
-  "id, reference_code, full_name, email, mobile, company, job_title, status, payment_reference, receipt_path, invited_at, registered_at, paid_at, cancelled_at, created_at";
+  "id, reference_code, first_name, last_name, full_name, name_as_entered, email, mobile, company, job_title, status, payment_reference, receipt_path, invited_at, registered_at, paid_at, cancelled_at, created_at";
 
 function one(v: string | string[] | undefined) {
   return (Array.isArray(v) ? v[0] : v) ?? "";
@@ -39,7 +39,7 @@ export default async function AttendeesPage({ searchParams }: { searchParams: Se
     if (term) {
       const like = `%${term}%`;
       query = query.or(
-        ["full_name", "email", "company", "mobile", "reference_code", "payment_reference"]
+        ["full_name", "name_as_entered", "email", "company", "mobile", "reference_code", "payment_reference"]
           .map((c) => `${c}.ilike.${like}`)
           .join(","),
       );

@@ -370,6 +370,23 @@
   margin-top: 0;
 }
 
+.twoFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.twoFields :global(.field + .field) {
+  margin-top: 0;
+}
+
+@media (max-width: 559px) {
+  .twoFields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .okText {
   color: var(--ok);
   font-weight: 600;

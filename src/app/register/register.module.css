@@ -136,6 +136,18 @@ button.progressButton:hover .progressBar {
   margin-bottom: 32px;
 }
 
+.nameRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+.nameRow :global(.field + .field) {
+  margin-top: 0;
+}
+
 .formError {
   margin-bottom: 28px;
   padding: 16px 20px;
@@ -427,6 +439,13 @@ button.progressButton:hover .progressBar {
   .reviewRow {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+}
+
+@media (max-width: 559px) {
+  .nameRow {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
 }
 

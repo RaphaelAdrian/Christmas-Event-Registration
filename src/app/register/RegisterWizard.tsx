@@ -9,14 +9,15 @@ import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { formatDayMonth, formatLongDate, formatPeso, formatTime } from "@/lib/format";
 import { fieldErrors, receiptFileProblem, registrationSchema, stepSchemas } from "@/lib/validation";
 import { CONFIRMATION_KEY, DRAFT_KEY } from "@/lib/keys";
-import { checkEmail, prepareReceiptUpload, submitRegistration } from "./actions";
+import { checkRegistrant, prepareReceiptUpload, submitRegistration } from "./actions";
 import styles from "./register.module.css";
 
 const STEPS = ["Your details", "Event instructions", "Terms and privacy", "Payment", "Review"] as const;
 const STEP_TITLES = ["Your details", "Event instructions", "Terms and privacy", "Payment", "Review and submit"];
 
 type FormData = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   mobile: string;
   company: string;
@@ -35,7 +36,8 @@ type Receipt = {
 };
 
 const EMPTY: FormData = {
-  fullName: "",
+  firstName: "",
+  lastName: "",
   email: "",
   mobile: "",
   company: "",
@@ -53,11 +55,13 @@ function fileSize(bytes: number) {
 
 export function RegisterWizard({
   initialEmail,
-  initialName,
+  initialFirstName = "",
+  initialLastName = "",
   initialCompany = "",
 }: {
   initialEmail: string;
-  initialName: string;
+  initialFirstName?: string;
+  initialLastName?: string;
   initialCompany?: string;
 }) {
   const router = useRouter();
@@ -65,7 +69,8 @@ export function RegisterWizard({
   const [data, setData] = useState<FormData>({
     ...EMPTY,
     email: initialEmail,
-    fullName: initialName,
+    firstName: initialFirstName,
+    lastName: initialLastName,
     company: initialCompany,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,7 +96,8 @@ export function RegisterWizard({
           sessionStorage.removeItem(DRAFT_KEY);
         } else {
           // Details passed in the link (invite or home page) win over the saved draft
-          if (initialName) merged.fullName = initialName;
+          if (initialFirstName) merged.firstName = initialFirstName;
+          if (initialLastName) merged.lastName = initialLastName;
           if (initialCompany) merged.company = initialCompany;
           setData(merged);
           setStep(Math.min(Math.max(0, draft.step), 4));
@@ -102,7 +108,7 @@ export function RegisterWizard({
       /* storage can be unavailable in private mode */
     }
     restored.current = true;
-  }, [initialEmail, initialName, initialCompany]);
+  }, [initialEmail, initialFirstName, initialLastName, initialCompany]);
 
   useEffect(() => {
     if (!restored.current) return;
@@ -125,10 +131,12 @@ export function RegisterWizard({
 
   const set = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
     setData((d) => ({ ...d, [key]: value }));
+    // A name message is about the whole name, so editing either part clears it
+    const keys: string[] = key === "firstName" || key === "lastName" ? ["firstName", "lastName"] : [key];
     setErrors((e) => {
-      if (!e[key]) return e;
+      if (!keys.some((k) => e[k])) return e;
       const next = { ...e };
-      delete next[key];
+      for (const k of keys) delete next[k];
       return next;
     });
   }, []);
@@ -156,18 +164,19 @@ export function RegisterWizard({
       const clean = result.data as Partial<FormData>;
       setData((d) => ({ ...d, ...clean }));
       setBusy("checking");
-      const check = await checkEmail(clean.email ?? data.email);
+      const check = await checkRegistrant({
+        firstName: clean.firstName ?? data.firstName,
+        lastName: clean.lastName ?? data.lastName,
+        email: clean.email ?? data.email,
+      });
       setBusy("");
       if (!check.ok) {
-        setFormError(check.error);
-        return;
-      }
-      if (check.registered) {
-        const errs = {
-          email: `This email is already registered. To change your registration, write to ${event.contact.email}.`,
-        };
-        setErrors(errs);
-        focusFirstError(errs);
+        if (check.fieldErrors) {
+          setErrors(check.fieldErrors);
+          focusFirstError(check.fieldErrors);
+        } else {
+          setFormError(check.error);
+        }
         return;
       }
     }
@@ -249,7 +258,7 @@ export function RegisterWizard({
         CONFIRMATION_KEY,
         JSON.stringify({
           referenceCode: res.referenceCode,
-          fullName: result.data.fullName,
+          fullName: `${result.data.firstName} ${result.data.lastName}`,
           company: result.data.company,
           jobTitle: result.data.jobTitle,
           email: result.data.email,
@@ -269,7 +278,7 @@ export function RegisterWizard({
 
   const pass = (
     <EventPass
-      name={data.fullName}
+      name={`${data.firstName} ${data.lastName}`.trim()}
       company={data.company}
       jobTitle={data.jobTitle}
       note={step === 4 ? "Reference issued when you submit" : undefined}
@@ -342,31 +351,51 @@ export function RegisterWizard({
               <fieldset className={styles.fieldset}>
                 <legend className="visually-hidden">Your details</legend>
                 <p className={styles.lead}>
-                  These go on your event pass and let us match your payment. All fields are required unless marked
-                  optional.
+                  {event.inviteOnly
+                    ? "Registration is by invitation. Use the last name on your invitation; your first name can be the short form you go by, like Jai for Jairus. All fields are required unless marked optional."
+                    : "These go on your event pass and let us match your payment. All fields are required unless marked optional."}
                 </p>
-                <div className="field">
-                  <label className="label" htmlFor="fullName">
-                    Full name
-                  </label>
-                  <p className="hint" id="fullName-hint">
-                    As it should appear on your pass.
-                  </p>
-                  <input
-                    id="fullName"
-                    data-field="fullName"
-                    className="input"
-                    autoComplete="name"
-                    value={data.fullName}
-                    onChange={(e) => set("fullName", e.target.value)}
-                    aria-invalid={Boolean(err("fullName"))}
-                    aria-describedby={describedBy("fullName", true)}
-                  />
-                  {err("fullName") ? (
-                    <p className="error" id="fullName-error">
-                      {err("fullName")}
-                    </p>
-                  ) : null}
+                <div className={styles.nameRow}>
+                  <div className="field">
+                    <label className="label" htmlFor="firstName">
+                      First name
+                    </label>
+                    <input
+                      id="firstName"
+                      data-field="firstName"
+                      className="input"
+                      autoComplete="given-name"
+                      value={data.firstName}
+                      onChange={(e) => set("firstName", e.target.value)}
+                      aria-invalid={Boolean(err("firstName"))}
+                      aria-describedby={describedBy("firstName")}
+                    />
+                    {err("firstName") ? (
+                      <p className="error" id="firstName-error">
+                        {err("firstName")}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="lastName">
+                      Last name
+                    </label>
+                    <input
+                      id="lastName"
+                      data-field="lastName"
+                      className="input"
+                      autoComplete="family-name"
+                      value={data.lastName}
+                      onChange={(e) => set("lastName", e.target.value)}
+                      aria-invalid={Boolean(err("lastName"))}
+                      aria-describedby={describedBy("lastName")}
+                    />
+                    {err("lastName") ? (
+                      <p className="error" id="lastName-error">
+                        {err("lastName")}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="email">
@@ -674,7 +703,8 @@ export function RegisterWizard({
               <div className={styles.review}>
                 <div className={styles.reviewPass}>{pass}</div>
                 <ReviewGroup title="Your details" onEdit={() => setStep(0)}>
-                  <Row label="Full name" value={data.fullName} error={errors.fullName} />
+                  <Row label="First name" value={data.firstName} error={errors.firstName} />
+                  <Row label="Last name" value={data.lastName} error={errors.lastName} />
                   <Row label="Email" value={data.email} error={errors.email} />
                   <Row label="Mobile" value={data.mobile} error={errors.mobile} />
                   <Row label="Company" value={data.company} error={errors.company} />

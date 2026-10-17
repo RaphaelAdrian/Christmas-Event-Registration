@@ -60,7 +60,7 @@ export async function buildAttendeeWorkbook(attendees: Attendee[], title: string
       ws.addRow({
         reference_code: a.reference_code ?? "",
         full_name: a.full_name,
-        email: a.email,
+        email: a.email ?? "",
         mobile: a.mobile ?? "",
         company: a.company ?? "",
         status: STATUS_LABELS[a.status],

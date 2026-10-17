@@ -18,6 +18,29 @@ Everything the public sees (name, date, venue, fee, payment accounts, schedule, 
 
 To close registration, set `registrationOpen: false`.
 
+## Who can register: the invite list
+
+With `inviteOnly: true` in `src/config/event.ts` (the default), only people on the admin **Invite list** can register. Set it to `false` to let anyone register.
+
+The list is by name: each person has a **first name** and a **last name**; email is optional. A registration matches someone on the list when:
+
+- the **last name** is the same (capitals, accents, spaces, dots, dashes and Jr./Sr./III don't matter: "dela Cruz" = "DelaCruz"), and
+- the **first name** fits: the full first name, or a word or the start of a word from it. "Jai Plantig" matches "Jairus Miguel Plantig"; so does "Miguel Plantig".
+
+What the person sees:
+
+| Situation | Result |
+| --- | --- |
+| Name matches an invited person | Registered; their status changes from Invited to Confirmed |
+| Name matches someone already registered | Refused: "This name is already registered" (nothing is added) |
+| Name is not on the list | Refused: "We can't find this name on the invite list" |
+| Short name fits two invited people (e.g. "Maria Santos" with Maria Clara and Maria Luisa on the list) | Asked to type the first name in full |
+| Email already used by a registration | Refused: "This email is already registered" |
+
+The admin lists show the name from the invite list, with "Registered as …" underneath when the person typed it differently.
+
+Add people on **Invite list** one at a time, or import an Excel (.xlsx) or CSV file with **First name**, **Last name** and (optional) **Email** columns. A single **Name** column also works ("Juan dela Cruz" is split into Juan / dela Cruz). People already on the list are skipped. **Copy invite link** gives a link that opens the form with their name (and email, if known) filled in.
+
 ## Add an admin
 
 An admin needs two things: a login, and their email on the allowlist.
@@ -47,14 +70,14 @@ The file is a snapshot: changing a status in Excel does not change the website. 
 | Paid | An admin checked the receipt and marked them Paid |
 | Cancelled | Cancelled |
 
-Registering with an email that is on the invite list changes that person from Invited to Confirmed automatically. In the admin **Invite list**, **Copy invite link** gives a link that opens the form with their email filled in.
+Registering with a name (or email) that matches the invite list changes that person from Invited to Confirmed automatically. See **Who can register** above.
 
 ## One-time setup
 
 ### 1. Supabase
 
 1. At [supabase.com](https://supabase.com), create a project (region: Southeast Asia (Singapore)). Save the database password somewhere safe.
-2. Open **SQL Editor → New query**, paste the whole of `supabase/migrations/20261016000000_initial_schema.sql`, and click **Run**. This creates the tables, the security rules and the private `receipts` storage bucket.
+2. Open **SQL Editor → New query**, paste the whole of `supabase/migrations/20261016000000_initial_schema.sql`, and click **Run**. Then do the same with `supabase/migrations/20261017000000_name_invite_list.sql`. Together they create the tables, the security rules, the name-based invite list and the private `receipts` storage bucket. (Already ran the first file earlier? Just run the second one.)
 3. Open **Authentication → Sign In / Providers** and turn off **Allow new users to sign up**. Admins are added by hand (see above).
 4. Add yourself as the first admin (see **Add an admin**).
 5. Open **Project Settings → API Keys** and keep the page open. You need the **Publishable key** and the **Secret key**. The project URL is under **Project Settings → Data API** (or the **Connect** button).

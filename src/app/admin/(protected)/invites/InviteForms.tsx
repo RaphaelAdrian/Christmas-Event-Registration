@@ -10,17 +10,25 @@ export function AddInviteForm() {
   return (
     // Re-mount after a successful add so the fields clear
     <form action={action} className={styles.inlineForm} key={state.message ? state.key : "form"} noValidate>
-      <div className="field">
-        <label className="label" htmlFor="invite-name">
-          Name
-        </label>
-        <input id="invite-name" name="fullName" className="input" autoComplete="off" />
+      <div className={styles.twoFields}>
+        <div className="field">
+          <label className="label" htmlFor="invite-first">
+            First name
+          </label>
+          <input id="invite-first" name="firstName" className="input" autoComplete="off" required />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="invite-last">
+            Last name
+          </label>
+          <input id="invite-last" name="lastName" className="input" autoComplete="off" required />
+        </div>
       </div>
       <div className="field">
         <label className="label" htmlFor="invite-email">
-          Email
+          Email <span className="label-optional">(optional)</span>
         </label>
-        <input id="invite-email" name="email" type="email" className="input" autoComplete="off" required />
+        <input id="invite-email" name="email" type="email" className="input" autoComplete="off" />
       </div>
       <button type="submit" className="btn" disabled={pending}>
         {pending ? "Adding…" : "Add to invite list"}
@@ -68,15 +76,29 @@ export function ImportForm() {
   );
 }
 
-export function InviteActions({ id, name, email, canRemove }: { id: string; name: string; email: string; canRemove: boolean }) {
+export function InviteActions({
+  id,
+  firstName,
+  lastName,
+  email,
+  canRemove,
+}: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  canRemove: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
   async function copy() {
-    const params = new URLSearchParams({ email });
-    if (name) params.set("name", name);
+    const params = new URLSearchParams();
+    if (firstName) params.set("first", firstName);
+    if (lastName) params.set("last", lastName);
+    if (email) params.set("email", email);
     const link = `${window.location.origin}/register?${params.toString()}`;
     try {
       await navigator.clipboard.writeText(link);
@@ -101,7 +123,7 @@ export function InviteActions({ id, name, email, canRemove }: { id: string; name
 
   return (
     <div className={styles.rowActions}>
-      <button type="button" className="btn btn-quiet btn-small" onClick={copy} data-invite-link={email}>
+      <button type="button" className="btn btn-quiet btn-small" onClick={copy}>
         {copied ? "Link copied" : "Copy invite link"}
       </button>
       {canRemove ? (

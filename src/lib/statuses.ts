@@ -22,8 +22,11 @@ export function statusFromLabel(label: string): AttendeeStatus | null {
 export type Attendee = {
   id: string;
   reference_code: string | null;
+  first_name: string;
+  last_name: string;
   full_name: string;
-  email: string;
+  name_as_entered: string | null;
+  email: string | null;
   mobile: string | null;
   company: string | null;
   job_title: string | null;

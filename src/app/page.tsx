@@ -99,6 +99,7 @@ export default function HomePage() {
             <p className={styles.where}>
               {event.venue.name}, {event.venue.city}
             </p>
+            {event.inviteOnly ? <p className={styles.where}>By invitation</p> : null}
             {open ? (
               <Link href="/register" className={`btn ${styles.heroAction}`}>
                 Register now
@@ -264,7 +265,12 @@ export default function HomePage() {
             </h2>
             <ol className={styles.steps}>
               {[
-                ["Your details", "Name, email, mobile number and company."],
+                [
+                  "Your details",
+                  event.inviteOnly
+                    ? "Your first and last name as on your invitation, then email, mobile number and company."
+                    : "Name, email, mobile number and company.",
+                ],
                 ["Event instructions", "Read them and tick to confirm."],
                 ["Terms and privacy", "Agree to the terms and give consent under the Data Privacy Act of 2012."],
                 ["Payment", "Enter the payment reference number and upload the receipt: an image or PDF up to 5 MB."],
@@ -277,7 +283,11 @@ export default function HomePage() {
             </ol>
           </div>
           <div className={styles.howPass}>
-            <p className={styles.howLead}>Type your name to see your pass. It carries into the form.</p>
+            <p className={styles.howLead}>
+              {event.inviteOnly
+                ? "Registration is by invitation. Type your name to see your pass; it carries into the form."
+                : "Type your name to see your pass. It carries into the form."}
+            </p>
             <PassPreview open={open} />
           </div>
         </section>

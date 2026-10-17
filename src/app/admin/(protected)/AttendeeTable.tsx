@@ -60,7 +60,10 @@ function Row({ attendee: a }: { attendee: Attendee }) {
       <td className={styles.ref}>{a.reference_code ?? <span className={styles.muted}>None yet</span>}</td>
       <td className={styles.nameCell}>
         <span className={styles.name}>{a.full_name || <span className={styles.muted}>No name</span>}</span>
-        <span className={styles.sub}>{a.email}</span>
+        {a.name_as_entered && a.name_as_entered.trim().toLowerCase() !== a.full_name.trim().toLowerCase() ? (
+          <span className={styles.sub}>Registered as {a.name_as_entered}</span>
+        ) : null}
+        <span className={styles.sub}>{a.email ?? "No email yet"}</span>
         {a.job_title ? <span className={styles.sub}>{a.job_title}</span> : null}
       </td>
       <td className={styles.nowrap}>{a.mobile ?? ""}</td>
@@ -81,7 +84,7 @@ function Row({ attendee: a }: { attendee: Attendee }) {
       </td>
       <td>
         <label className="visually-hidden" htmlFor={`status-${a.id}`}>
-          Status for {a.full_name || a.email}
+          Status for {a.full_name || a.email || "this person"}
         </label>
         <select
           id={`status-${a.id}`}

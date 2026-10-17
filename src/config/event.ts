@@ -21,6 +21,14 @@ export const event = {
   /** Set to false to close registration (the form shows a "closed" notice). */
   registrationOpen: true,
 
+  /**
+   * true  = only people on the admin Invite list can register. Their first and
+   *         last name must match the list (a short first name such as "Jai" for
+   *         "Jairus" is accepted; the last name must match).
+   * false = anyone can register; invited people are still matched and confirmed.
+   */
+  inviteOnly: true,
+
   /** Event name, as large as it gets on the home page. Two short lines read best (about 30 characters). */
   name: "Partners Summit 2026",
 

@@ -1,7 +1,8 @@
 import "server-only";
 import ExcelJS from "exceljs";
+import { splitFullName } from "@/lib/names";
 
-export type ImportedRow = { row: number; name: string; email: string };
+export type ImportedRow = { row: number; first: string; last: string; email: string };
 
 /** Minimal CSV parser: commas or semicolons, quoted fields, "" escapes, CRLF or LF. */
 export function parseCsv(text: string): string[][] {
@@ -75,7 +76,13 @@ export async function parseXlsx(buffer: ArrayBuffer): Promise<string[][]> {
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-/** Finds the name and email columns (by header, or by looking at the data) and returns the rows. */
+/**
+ * Finds the first name, last name and (optional) email columns, by header or
+ * by looking at the data, and returns one entry per non-empty row.
+ * Accepted headers: "First name" / "Given name", "Last name" / "Surname" /
+ * "Family name", "Email" / "E-mail", or a single "Name" / "Full name" column
+ * (split into first and last name: "Juan dela Cruz" -> Juan / dela Cruz).
+ */
 export function rowsToInvites(rows: string[][]): ImportedRow[] {
   const trimmed = rows.map((r) => r.map((c) => (c ?? "").trim()));
   const nonEmpty = trimmed.filter((r) => r.some((c) => c));
@@ -83,19 +90,23 @@ export function rowsToInvites(rows: string[][]): ImportedRow[] {
 
   const first = trimmed.findIndex((r) => r.some((c) => c));
   const head = trimmed[first]!.map((c) => c.toLowerCase());
-  const hasHeader = head.some((c) => /e-?mail/.test(c)) && !head.some((c) => EMAIL_RE.test(c));
+  const looksLikeHeader =
+    !head.some((c) => EMAIL_RE.test(c)) &&
+    head.some((c) => /e-?mail|first|given|last|sur ?name|family|^name$|full ?name/.test(c));
 
   let emailCol = -1;
+  let firstCol = -1;
+  let lastCol = -1;
   let nameCol = -1;
-  let firstNameCol = -1;
-  let lastNameCol = -1;
 
-  if (hasHeader) {
+  if (looksLikeHeader) {
     emailCol = head.findIndex((c) => /e-?mail/.test(c));
-    nameCol = head.findIndex((c) => /^(full\s*name|name|attendee|guest|invitee)$/.test(c));
-    if (nameCol === -1) nameCol = head.findIndex((c, i) => i !== emailCol && /name/.test(c) && !/first|last|given|sur|family|company/.test(c));
-    firstNameCol = head.findIndex((c) => /first|given/.test(c));
-    lastNameCol = head.findIndex((c) => /last|sur|family/.test(c));
+    firstCol = head.findIndex((c) => /first|given/.test(c));
+    lastCol = head.findIndex((c) => /last|sur ?name|family/.test(c));
+    if (firstCol === -1 || lastCol === -1) {
+      nameCol = head.findIndex((c) => /^(full ?name|name|attendee|guest|invitee)$/.test(c));
+      if (nameCol === -1) nameCol = head.findIndex((c, i) => i !== emailCol && /name/.test(c));
+    }
   } else {
     const width = Math.max(...nonEmpty.map((r) => r.length));
     let best = 0;
@@ -106,26 +117,33 @@ export function rowsToInvites(rows: string[][]): ImportedRow[] {
         emailCol = c;
       }
     }
+    const textCols: number[] = [];
     for (let c = 0; c < width; c++) {
-      if (c !== emailCol && nonEmpty.some((r) => (r[c] ?? "") !== "")) {
-        nameCol = c;
-        break;
-      }
+      if (c !== emailCol && nonEmpty.some((r) => (r[c] ?? "") !== "")) textCols.push(c);
+    }
+    if (textCols.length >= 2) {
+      firstCol = textCols[0]!;
+      lastCol = textCols[1]!;
+    } else if (textCols.length === 1) {
+      nameCol = textCols[0]!;
     }
   }
 
-  if (emailCol === -1) return [];
+  if (firstCol === -1 && lastCol === -1 && nameCol === -1) return [];
 
   const out: ImportedRow[] = [];
   trimmed.forEach((r, i) => {
-    if (hasHeader && i <= first) return;
+    if (looksLikeHeader && i <= first) return;
     if (!r.some((c) => c)) return;
-    let name = nameCol >= 0 ? (r[nameCol] ?? "") : "";
-    if (!name && (firstNameCol >= 0 || lastNameCol >= 0)) {
-      name = [firstNameCol >= 0 ? r[firstNameCol] : "", lastNameCol >= 0 ? r[lastNameCol] : ""].filter(Boolean).join(" ");
+    let firstName = firstCol >= 0 ? (r[firstCol] ?? "") : "";
+    let lastName = lastCol >= 0 ? (r[lastCol] ?? "") : "";
+    if (nameCol >= 0 && (!firstName || !lastName)) {
+      const split = splitFullName(r[nameCol] ?? "");
+      firstName = firstName || split.first;
+      lastName = lastName || split.last;
     }
-    const email = (r[emailCol] ?? "").replace(/^mailto:/i, "").trim().toLowerCase();
-    out.push({ row: i + 1, name: name.slice(0, 100), email });
+    const email = emailCol >= 0 ? (r[emailCol] ?? "").replace(/^mailto:/i, "").trim().toLowerCase() : "";
+    out.push({ row: i + 1, first: firstName.slice(0, 100), last: lastName.slice(0, 100), email });
   });
   return out;
 }

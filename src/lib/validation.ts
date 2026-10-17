@@ -26,12 +26,20 @@ export function normalizeMobile(input: string): string | null {
 
 const mustTick = (message: string) => z.boolean().refine((v) => v === true, { message });
 
+const firstName = z
+  .string()
+  .trim()
+  .min(1, { message: "Enter your first name." })
+  .max(100, { message: "Use 100 characters or fewer." });
+const lastName = z
+  .string()
+  .trim()
+  .min(1, { message: "Enter your last name." })
+  .max(100, { message: "Use 100 characters or fewer." });
+
 export const detailsSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, { message: "Enter your full name." })
-    .max(100, { message: "Use 100 characters or fewer." }),
+  firstName,
+  lastName,
   email: z
     .string()
     .trim()
@@ -92,7 +100,8 @@ export const stepSchemas = [detailsSchema, instructionsSchema, termsSchema, paym
 
 /** Which step a field belongs to (0-based), so errors can send people back to the right place. */
 export const FIELD_STEP: Record<string, number> = {
-  fullName: 0,
+  firstName: 0,
+  lastName: 0,
   email: 0,
   mobile: 0,
   company: 0,
@@ -111,15 +120,18 @@ export function receiptFileProblem(file: { type: string; size: number }): string
   return null;
 }
 
+/** One person on the invite list: first and last name required, email optional. */
 export const inviteSchema = z.object({
-  fullName: z.string().trim().max(100, { message: "Use 100 characters or fewer." }),
+  firstName,
+  lastName,
   email: z
     .string()
     .trim()
     .toLowerCase()
-    .min(1, { message: "Enter an email address." })
     .max(254, { message: "That email address is too long." })
-    .email({ message: "Enter an email address like name@company.com." }),
+    .refine((v) => v === "" || z.string().email().safeParse(v).success, {
+      message: "Enter an email address like name@company.com, or leave it empty.",
+    }),
 });
 
 /** Flatten zod issues into { field: message } (first message per field). */
