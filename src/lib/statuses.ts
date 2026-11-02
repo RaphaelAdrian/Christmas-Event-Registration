@@ -1,22 +1,32 @@
-export const STATUSES = ["invited", "confirmed", "paid", "cancelled"] as const;
+/** Registration: invited (invite list only) → pending → approved or declined. */
+export const REGISTRATION_STATUSES = ["invited", "pending", "approved", "declined"] as const;
+export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 
-export type AttendeeStatus = (typeof STATUSES)[number];
+/** Payment: unpaid → submitted → paid, or rejected (the person can submit again). */
+export const PAYMENT_STATUSES = ["unpaid", "submitted", "paid", "rejected"] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-/** The wording used everywhere: admin screens, filters and the Excel file. */
-export const STATUS_LABELS: Record<AttendeeStatus, string> = {
-  invited: "Invited – Not Confirmed",
-  confirmed: "Confirmed – Will Join",
-  paid: "Paid",
-  cancelled: "Cancelled",
+/** The wording used everywhere: admin screens, filters, the registrant's page and the Excel file. */
+export const REGISTRATION_LABELS: Record<RegistrationStatus, string> = {
+  invited: "Invited – Not registered",
+  pending: "Pending",
+  approved: "Approved",
+  declined: "Declined",
 };
 
-export function isStatus(value: unknown): value is AttendeeStatus {
-  return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
+export const PAYMENT_LABELS: Record<PaymentStatus, string> = {
+  unpaid: "Unpaid",
+  submitted: "Payment Submitted",
+  paid: "Paid",
+  rejected: "Rejected",
+};
+
+export function isRegistrationStatus(value: unknown): value is RegistrationStatus {
+  return typeof value === "string" && (REGISTRATION_STATUSES as readonly string[]).includes(value);
 }
 
-export function statusFromLabel(label: string): AttendeeStatus | null {
-  const entry = Object.entries(STATUS_LABELS).find(([, l]) => l === label);
-  return entry ? (entry[0] as AttendeeStatus) : null;
+export function isPaymentStatus(value: unknown): value is PaymentStatus {
+  return typeof value === "string" && (PAYMENT_STATUSES as readonly string[]).includes(value);
 }
 
 export type Attendee = {
@@ -27,15 +37,38 @@ export type Attendee = {
   full_name: string;
   name_as_entered: string | null;
   email: string | null;
-  mobile: string | null;
   company: string | null;
-  job_title: string | null;
-  status: AttendeeStatus;
-  payment_reference: string | null;
-  receipt_path: string | null;
+  registration_status: RegistrationStatus;
+  payment_status: PaymentStatus;
+  user_id: string | null;
   invited_at: string | null;
   registered_at: string | null;
+  approved_at: string | null;
+  declined_at: string | null;
   paid_at: string | null;
-  cancelled_at: string | null;
+  reviewed_by: string | null;
   created_at: string;
 };
+
+export const ATTENDEE_COLUMNS =
+  "id, reference_code, first_name, last_name, full_name, name_as_entered, email, company, registration_status, payment_status, user_id, invited_at, registered_at, approved_at, declined_at, paid_at, reviewed_by, created_at";
+
+export type PaymentSubmission = {
+  id: string;
+  attendee_id: string;
+  reference: string;
+  reference_key: string;
+  /** None for a payment an admin received directly */
+  receipt_path: string | null;
+  amount: number | null;
+  status: "submitted" | "paid" | "rejected";
+  /** online: sent through the site with a receipt; direct: paid to an organiser and marked by an admin */
+  method: "online" | "direct";
+  reject_reason: string | null;
+  submitted_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+};
+
+export const SUBMISSION_COLUMNS =
+  "id, attendee_id, reference, reference_key, receipt_path, amount, status, method, reject_reason, submitted_at, reviewed_at, reviewed_by";

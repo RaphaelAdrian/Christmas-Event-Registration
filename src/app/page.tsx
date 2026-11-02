@@ -1,360 +1,352 @@
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { event } from "@/config/event";
+import { Countdown } from "@/components/Countdown";
+import { Gallery } from "@/components/Gallery";
+import { LoopVideo } from "@/components/LoopVideo";
+import { Parol } from "@/components/Parol";
 import { PassPreview } from "@/components/PassPreview";
-import { SampleStrip } from "@/components/SampleStrip";
-import {
-  formatDayMonth,
-  formatLongDate,
-  formatPeso,
-  formatShortDate,
-  formatTime,
-  formatWeekday,
-} from "@/lib/format";
+import heroPhoto from "../../public/venue/pool-pavilion-dusk.jpg";
+import poolDay from "../../public/venue/pool-day-view.jpg";
+import poolNight from "../../public/venue/pool-dusk.jpg";
+import { getEventDetails, getEventSettings, getGalleryPhotos } from "@/lib/event";
+import { formatClock, formatDayMonth, formatLongDate, paragraphs, timeRange } from "@/lib/format";
 import styles from "./home.module.css";
 
-/** Splits the event name into two balanced lines for the masked headline. */
-function twoLines(text: string): string[] {
-  const words = text.trim().split(/\s+/);
-  if (words.length < 2) return [text];
-  let best = 1;
-  let bestScore = Infinity;
-  for (let i = 1; i < words.length; i++) {
-    const a = words.slice(0, i).join(" ").length;
-    const b = words.slice(i).join(" ").length;
-    const score = Math.max(a, b);
-    if (score < bestScore) {
-      bestScore = score;
-      best = i;
+export const revalidate = 300;
+
+/**
+ * Splits the event name into at most two lines of similar length, breaking at
+ * a space or after a hyphen, so it can be set as large as the screen allows.
+ */
+function monumentLines(name: string): string[] {
+  const text = name.trim();
+  if (text.length <= 14) return [text];
+  let best: [string, string] = [text, ""];
+  let bestLongest = Infinity;
+  for (let i = 1; i < text.length; i++) {
+    const breakHere = text[i - 1] === "-" || text[i] === " ";
+    if (!breakHere) continue;
+    const a = text.slice(0, i).trimEnd();
+    const b = text.slice(i).trimStart();
+    const longest = Math.max(a.length, b.length + 1); // the parol takes the space plus about one letter
+    if (longest < bestLongest) {
+      bestLongest = longest;
+      best = [a, b];
     }
   }
-  return [words.slice(0, best).join(" "), words.slice(best).join(" ")];
+  return best[1] ? best : [text];
+}
+
+/** Puts the parol in the word space before the last word of the line. */
+function withParol(line: string) {
+  const cut = line.lastIndexOf(" ");
+  if (cut < 0) {
+    return (
+      <>
+        {line}
+        <Parol className={styles.glyph} />
+      </>
+    );
+  }
+  return (
+    <>
+      {line.slice(0, cut)}
+      <Parol className={styles.glyph} />
+      <span className="visually-hidden"> </span>
+      {line.slice(cut + 1)}
+    </>
+  );
 }
 
 const delay = (i: number) => ({ "--i": i }) as CSSProperties;
 
-function shortTime(iso: string) {
-  return formatTime(iso).replace(":00", "");
-}
-
-export default function HomePage() {
-  const lines = twoLines(event.name);
+export default async function HomePage() {
+  const [event, details, photos] = await Promise.all([getEventSettings(), getEventDetails(), getGalleryPhotos()]);
+  const lines = monumentLines(event.name);
+  const chars = Math.max(...lines.map((l, i) => l.length + (i === lines.length - 1 ? 1 : 0)));
   const open = event.registrationOpen;
+  const action = open ? { href: "/register", label: "Register" } : { href: "/login", label: "Sign in" };
+  const passEvent = {
+    shortName: event.shortName,
+    startsAt: event.startsAt,
+    venueName: event.venueName,
+    referencePrefix: event.referencePrefix,
+    callTime: event.callTime,
+  };
   const year = new Date(event.startsAt).getFullYear();
-  const deadline = formatDayMonth(event.paymentDeadline);
-  const email = event.contact.email;
-  const [emailUser, emailDomain] = email.split("@");
-  const emailSize = `min(${(100 / (Math.min(email.length, 26) * 0.6)).toFixed(2)}vw, 9.5rem)`;
-
-  const facts = [
-    { big: formatShortDate(event.startsAt), small: `${formatWeekday(event.startsAt)}, ${year}` },
-    {
-      big: shortTime(event.startsAt),
-      small: `Until ${shortTime(event.endsAt)}. Desk opens ${event.doorsOpen}`,
-    },
-    { big: event.venue.city, small: `${event.venue.name}, ${event.venue.address}` },
-    { big: formatPeso(event.fee), small: `Pay by ${deadline}` },
-  ];
+  const footerName = event.shortName.trim();
+  const footerLines = monumentLines(footerName);
 
   return (
     <>
-      <SampleStrip />
       <header className={styles.hero}>
+        <Image
+          src={heroPhoto}
+          alt={`The pool at ${event.venueName || "the resort"} at dusk, with palm trees and the lit pavilion above the city lights`}
+          fill
+          priority
+          placeholder="blur"
+          sizes="100vw"
+          className={styles.heroPhoto}
+        />
         <nav className={styles.topRow} aria-label="Main">
           <Link href="/" className={styles.wordmark}>
             {event.shortName}
           </Link>
           <ul className={styles.links}>
-            <li>
-              <a href="#schedule">Schedule</a>
+            <li className={styles.optionalLink}>
+              <a href="#getting-there">Getting there</a>
             </li>
-            <li>
-              <a href="#payment">Payment</a>
+            <li className={styles.optionalLink}>
+              <a href="#venue">The venue</a>
             </li>
+            {details.length ? (
+              <li className={styles.optionalLink}>
+                <a href="#details">Details</a>
+              </li>
+            ) : null}
+            {photos.length ? (
+              <li className={styles.optionalLink}>
+                <a href="#photos">Photos</a>
+              </li>
+            ) : null}
             <li>
-              <a href="#instructions">Before you come</a>
+              <Link href="/login">Sign in</Link>
             </li>
           </ul>
-          {open ? (
-            <Link href="/register" className={`btn ${styles.topAction}`}>
-              Register
-            </Link>
-          ) : null}
         </nav>
 
-        <div className={styles.heroBottom} id="main">
-          <h1 className={styles.statement}>
-            {lines.map((line, i) => (
-              <span className={styles.line} key={i}>
-                <span className={styles.lineInner} style={{ animationDelay: `${120 + i * 110}ms` }}>
-                  {line}
-                </span>
+        <h1 className={styles.monument} style={{ "--chars": chars } as CSSProperties} id="main">
+          {lines.map((line, i) => (
+            <span className={styles.line} key={i}>
+              <span className={styles.lineInner} style={{ animationDelay: `${100 + i * 120}ms` }}>
+                {i === lines.length - 1 ? withParol(line) : line}
               </span>
-            ))}
-          </h1>
-          <div className={styles.heroAside}>
-            <p className={styles.when}>
-              {formatLongDate(event.startsAt)}, {formatTime(event.startsAt)} to {formatTime(event.endsAt)}
+            </span>
+          ))}
+        </h1>
+
+        <div className={styles.heroFoot}>
+          <div className={styles.heroFacts}>
+            <p className={styles.heroDate}>
+              {formatLongDate(event.startsAt)}
+              <br />
+              {timeRange(event.startsAt, event.endsAt)}
             </p>
-            <p className={styles.where}>
-              {event.venue.name}, {event.venue.city}
+            <p className={styles.heroVenue}>
+              {event.venueName}
+              {event.mapUrl ? (
+                <>
+                  {" "}
+                  <a href={event.mapUrl} target="_blank" rel="noopener noreferrer">
+                    Open the map
+                  </a>
+                </>
+              ) : null}
             </p>
-            {event.inviteOnly ? <p className={styles.where}>By invitation</p> : null}
-            {open ? (
-              <Link href="/register" className={`btn ${styles.heroAction}`}>
-                Register now
-              </Link>
-            ) : (
-              <p className={styles.closed}>Registration is closed.</p>
-            )}
+          </div>
+          <div className={styles.heroAction}>
+            {event.tagline ? <p className={styles.tagline}>{event.tagline}</p> : null}
+            <Link href={action.href} className="btn">
+              {action.label}
+            </Link>
           </div>
         </div>
       </header>
 
       <main>
-        <section className={styles.intro} aria-labelledby="about-heading">
-          <div className={styles.introTop}>
-            <h2 id="about-heading" className={styles.introHeading} data-reveal>
-              {event.aboutHeading}
-            </h2>
-            <p className={styles.introNote} data-reveal style={delay(1)}>
-              {event.summary} {event.feeIncludes}
-            </p>
+        <section className={`${styles.countdown} ${styles.torn}`} aria-labelledby="countdown-heading">
+          <h2 id="countdown-heading" className={styles.countdownHeading} data-reveal>
+            Counting down to {formatClock(event.startsAt)}, {formatDayMonth(event.startsAt)}
+          </h2>
+          <div data-reveal style={delay(1)}>
+            <Countdown startsAt={event.startsAt} />
           </div>
-          <dl className={styles.facts}>
-            {facts.map((f, i) => (
-              <div key={f.big} className={styles.fact} data-reveal style={delay(i)}>
-                <dt className={styles.factBig}>{f.big}</dt>
-                <dd className={styles.factSmall}>{f.small}</dd>
-              </div>
-            ))}
-          </dl>
-          {event.venue.mapUrl ? (
-            <p className={styles.mapLink}>
-              <a href={event.venue.mapUrl} target="_blank" rel="noreferrer">
-                Open the venue in Google Maps
-              </a>
-            </p>
-          ) : null}
+          <p className={styles.countdownNote} data-reveal style={delay(2)}>
+            Philippine time, wherever you are reading this.
+          </p>
         </section>
 
-        {event.venue.photo.src ? (
-          <figure className={styles.photoBand}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={event.venue.photo.src} alt={event.venue.photo.alt} loading="lazy" decoding="async" />
-          </figure>
-        ) : null}
-
-        <section id="schedule" className={`${styles.schedule} on-dark`} aria-labelledby="schedule-heading">
-          <h2 id="schedule-heading" className={styles.scheduleHeading}>
-            Schedule for {formatDayMonth(event.startsAt)}
+        <section id="getting-there" className={`${styles.route} ${styles.torn}`} aria-labelledby="route-heading">
+          <h2 id="route-heading" className="visually-hidden">
+            Getting there
           </h2>
-          <ol className={styles.poster}>
-            {event.schedule.map((item, i) => (
-              <li key={item.title + item.time} className={styles.posterItem} data-reveal style={delay(i)}>
-                <span className={styles.posterTitle}>{item.title}</span>
-                {item.detail ? <span className={styles.posterDetail}>{item.detail}</span> : null}
-                <span className={styles.posterTime}>{item.time}</span>
+          <ol className={styles.stairs}>
+            {event.callTime ? (
+              <li className={styles.stair} data-reveal>
+                <p className={styles.stairLine}>Be there by {event.callTime}.</p>
+                <p className={styles.stairNote}>{event.shuttleInfo || "Call time for the shuttle."}</p>
               </li>
-            ))}
+            ) : null}
+            <li className={styles.stair} data-reveal style={delay(1)}>
+              <p className={styles.stairLine}>The party starts at {formatClock(event.startsAt)}.</p>
+              <p className={styles.stairNote}>
+                {[event.venueName, event.venueAddress].filter(Boolean).join(", ")}.{" "}
+                {event.mapUrl ? (
+                  <a href={event.mapUrl} target="_blank" rel="noopener noreferrer">
+                    Open {event.venueName || "the venue"} in Google Maps
+                  </a>
+                ) : null}
+              </p>
+            </li>
+            <li className={styles.stair} data-reveal style={delay(2)}>
+              <p className={`${styles.stairLine} ${styles.stairLast}`}>It runs until {formatClock(event.endsAt)}.</p>
+              <p className={styles.stairNote}>{formatLongDate(event.startsAt)}.</p>
+            </li>
           </ol>
         </section>
 
-        <section id="payment" className={styles.payment} aria-labelledby="payment-heading">
-          <div className={styles.paymentHead}>
-            <h2 id="payment-heading" className={styles.paymentHeading} data-reveal>
-              Pay {formatPeso(event.fee)} by {deadline}
+        <section id="venue" className={`${styles.venue} ${styles.torn}`} aria-labelledby="venue-heading">
+          <div className={styles.venueText}>
+            <h2 id="venue-heading" className={styles.sectionHeading} data-reveal>
+              {event.venueName || "The venue"}
             </h2>
-            <p className={styles.paymentNote} data-reveal style={delay(1)}>
-              {event.feeIncludes} Pay with any of the accounts below, keep a screenshot of the receipt, then register.
-              You&rsquo;ll enter the payment reference number and upload the receipt in step 4.
+            <p className={styles.venueLead} data-reveal style={delay(1)}>
+              A pool, a pavilion, a garden deck and a dining hall, high above the city lights.
             </p>
+            {event.mapUrl ? (
+              <p data-reveal style={delay(2)}>
+                <a href={event.mapUrl} target="_blank" rel="noopener noreferrer">
+                  Open the map
+                </a>
+              </p>
+            ) : null}
           </div>
-
-          <table className={styles.payTable} data-reveal style={delay(2)}>
-            <caption className="visually-hidden">Payment accounts</caption>
-            <thead>
-              <tr>
-                <td />
-                {event.paymentMethods.map((m) => (
-                  <th scope="col" key={m.name}>
-                    {m.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Amount</th>
-                {event.paymentMethods.map((m) => (
-                  <td key={m.name} className="tabular">
-                    {formatPeso(event.fee)}
-                  </td>
-                ))}
-              </tr>
-              {event.paymentMethods.some((m) => m.bank) ? (
-                <tr>
-                  <th scope="row">Bank</th>
-                  {event.paymentMethods.map((m) => (
-                    <td key={m.name}>{m.bank ?? "Not needed"}</td>
-                  ))}
-                </tr>
-              ) : null}
-              <tr>
-                <th scope="row">Account name</th>
-                {event.paymentMethods.map((m) => (
-                  <td key={m.name}>{m.accountName}</td>
-                ))}
-              </tr>
-              <tr>
-                <th scope="row">Account number</th>
-                {event.paymentMethods.map((m) => (
-                  <td key={m.name} className={`tabular ${styles.accountNumber}`}>
-                    {m.accountNumber}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <th scope="row">How</th>
-                {event.paymentMethods.map((m) => (
-                  <td key={m.name}>{m.note ?? ""}</td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-
-          <div className={styles.payBlocks}>
-            {event.paymentMethods.map((m) => (
-              <div key={m.name} className={styles.payBlock}>
-                <h3 className={styles.payBlockName}>{m.name}</h3>
-                <dl>
-                  {m.bank ? (
-                    <>
-                      <dt>Bank</dt>
-                      <dd>{m.bank}</dd>
-                    </>
-                  ) : null}
-                  <dt>Account name</dt>
-                  <dd>{m.accountName}</dd>
-                  <dt>Account number</dt>
-                  <dd className={`tabular ${styles.accountNumber}`}>{m.accountNumber}</dd>
-                  {m.note ? (
-                    <>
-                      <dt>How</dt>
-                      <dd>{m.note}</dd>
-                    </>
-                  ) : null}
-                </dl>
-              </div>
-            ))}
+          <div className={`${styles.venueVideo} ${styles.frame}`} data-reveal style={delay(1)}>
+            <LoopVideo
+              src="/venue/resort.mp4"
+              label="A short clip panning across the resort terrace and the view over the city"
+              className={styles.video}
+            />
           </div>
-
-          {open ? (
-            <p className={styles.payAction}>
-              <Link href="/register" className="btn">
-                Register and upload your receipt
-              </Link>
-            </p>
-          ) : null}
+          <figure className={styles.venueDay} data-reveal>
+            <div className={styles.frame}>
+              <Image
+                src={poolDay}
+                alt="The pool in the afternoon, reflecting the clouds, with the city below"
+                sizes="(min-width: 900px) 58vw, 100vw"
+                placeholder="blur"
+                className={styles.venueImage}
+              />
+            </div>
+            <figcaption className={styles.venueCaption}>In the afternoon</figcaption>
+          </figure>
+          <figure className={styles.venueNight} data-reveal style={delay(1)}>
+            <div className={styles.frame}>
+              <Image
+                src={poolNight}
+                alt="The pool after dark, under strings of lights, with the city lit up below"
+                sizes="(min-width: 900px) 40vw, 100vw"
+                placeholder="blur"
+                className={styles.venueImage}
+              />
+            </div>
+            <figcaption className={styles.venueCaption}>After dark</figcaption>
+          </figure>
         </section>
 
-        <section id="how" className={styles.how} aria-labelledby="how-heading">
-          <div className={styles.howText}>
-            <h2 id="how-heading" className={styles.howHeading} data-reveal>
-              Register in five steps
+        {details.length ? (
+          <section id="details" className={`${styles.details} ${styles.torn}`} aria-labelledby="details-heading">
+            <h2 id="details-heading" className={styles.sectionHeading} data-reveal>
+              Good to know
+            </h2>
+            <dl className={styles.detailList}>
+              {details.map((d, i) => (
+                <div key={d.id} className={styles.detail} data-reveal style={delay(Math.min(i, 4))}>
+                  <dt className={styles.detailTitle}>{d.title}</dt>
+                  <dd className={styles.detailBody}>
+                    {paragraphs(d.body).map((p, j) => (
+                      <p key={j}>{p}</p>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
+
+        <section id="pass" className={`${styles.pass} ${styles.torn}`} aria-labelledby="pass-heading">
+          <div className={styles.passText}>
+            <h2 id="pass-heading" className={styles.sectionHeading} data-reveal>
+              Your pass to the party
             </h2>
             <ol className={styles.steps}>
               {[
-                [
-                  "Your details",
-                  event.inviteOnly
-                    ? "Your first and last name as on your invitation, then email, mobile number and company."
-                    : "Name, email, mobile number and company.",
-                ],
-                ["Event instructions", "Read them and tick to confirm."],
-                ["Terms and privacy", "Agree to the terms and give consent under the Data Privacy Act of 2012."],
-                ["Payment", "Enter the payment reference number and upload the receipt: an image or PDF up to 5 MB."],
-                ["Review and submit", "Your reference code appears straight away. We then verify your payment."],
-              ].map(([title, text], i) => (
-                <li key={title} className={styles.step} data-reveal style={delay(i)}>
-                  <strong>{title}.</strong> {text}
+                "Register with your name, email and company, and choose a password.",
+                "Pay now or whenever you’re ready: sign in any time to see the amount, the QR code and where to send your receipt.",
+                "We check every registration and payment by hand. Sign in any time to see where yours is.",
+                "Once we confirm your payment, your pass is ready.",
+              ].map((s, i) => (
+                <li key={s} data-reveal style={delay(i + 1)}>
+                  {s}
                 </li>
               ))}
             </ol>
           </div>
-          <div className={styles.howPass}>
-            <p className={styles.howLead}>
-              {event.inviteOnly
-                ? "Registration is by invitation. Type your name to see your pass; it carries into the form."
-                : "Type your name to see your pass. It carries into the form."}
-            </p>
-            <PassPreview open={open} />
+          <div data-reveal style={delay(2)}>
+            <PassPreview event={passEvent} open={open} />
           </div>
         </section>
 
-        <section id="instructions" className={styles.instructions} aria-labelledby="instructions-heading">
-          <h2 id="instructions-heading" className={styles.instructionsHeading} data-reveal>
-            Before you come
-          </h2>
-          <div className={styles.answers}>
-            {event.instructions.map((item, i) => (
-              <p key={item.question} className={styles.answer} data-reveal style={delay(Math.min(i, 4))}>
-                <strong>{item.question}</strong> {item.answer}
-              </p>
-            ))}
-            <p className={styles.answer} data-reveal>
-              <strong>What are the terms?</strong> Read the{" "}
-              <Link href="/terms">terms and conditions and privacy notice</Link>. You agree to them in step 3 of the form.
-            </p>
-          </div>
-        </section>
+        {photos.length ? (
+          <section id="photos" className={`${styles.photos} ${styles.torn}`} aria-labelledby="photos-heading">
+            <Gallery
+              title="Photos"
+              headingId="photos-heading"
+              photos={photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, width: p.width, height: p.height }))}
+            />
+          </section>
+        ) : null}
+
+        <a href={action.href} className={`${styles.band} ${styles.torn}`}>
+          <span className={styles.bandNote}>
+            {open
+              ? "It takes a minute. Choose a password; pay now or come back whenever you’re ready."
+              : "Registration is closed. Registered guests can sign in to pay and see their pass."}
+          </span>
+          <svg className={styles.bandArrow} viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M12 36L36 12M16 12h20v20" fill="none" stroke="currentColor" strokeWidth="3" />
+          </svg>
+          <span className={styles.bandWord}>{action.label}</span>
+        </a>
       </main>
 
-      <footer className={`${styles.close} on-dark`}>
-        <p className={styles.closeLead}>Questions about registration or payment? Write to us.</p>
-        <a className={styles.bigEmail} href={`mailto:${email}`} style={{ fontSize: emailSize }}>
-          {email.length > 26 ? (
-            <>
-              {emailUser}@
-              <br />
-              {emailDomain}
-            </>
-          ) : (
-            email
-          )}
-        </a>
-        <div className={styles.closeRow}>
-          <ul className={styles.closePlaces}>
-            <li>
-              <a href={`tel:${event.contact.phone.replace(/\s/g, "")}`}>{event.contact.phone}</a>
-            </li>
-            <li>
-              {event.venue.name}, {event.venue.city}
-            </li>
-          </ul>
+      <footer className={`${styles.close} ${styles.torn} theme-light`}>
+        <div className={styles.closeTop}>
+          <p className={styles.inviteLine}>See you on {formatDayMonth(event.startsAt)}.</p>
           <ul className={styles.closeLinks}>
-            {open ? (
-              <li>
-                <Link href="/register">Register</Link>
-              </li>
-            ) : null}
+            <li>
+              <Link href="/login">Sign in</Link>
+            </li>
             <li>
               <Link href="/terms">Terms and privacy</Link>
             </li>
-            <li>
-              <a href="#main">Back to top</a>
-            </li>
+            {event.contactEmail ? (
+              <li>
+                <a href={`mailto:${event.contactEmail}`}>{event.contactEmail}</a>
+              </li>
+            ) : null}
           </ul>
         </div>
         <p className={styles.legal}>
-          &copy; {year} {event.organizer}
+          <span>
+            {year} {event.organizer || event.shortName}
+          </span>
+          <span>{event.venueName}</span>
         </p>
+        {/* Two balanced lines on a phone, one line on wider screens; sized from the longest */}
         <p
           className={styles.footerName}
           aria-hidden="true"
-          style={{ fontSize: `${(100 / (event.shortName.length * 0.56)).toFixed(2)}vw` }}
+          style={{ "--chars": footerName.length, "--line-chars": Math.max(...footerLines.map((l) => l.length)) } as CSSProperties}
         >
-          {event.shortName}
+          {footerLines.map((line, i) => (
+            <span key={i} className={styles.footerLine}>
+              {i > 0 ? " " : ""}
+              {line}
+            </span>
+          ))}
         </p>
       </footer>
     </>

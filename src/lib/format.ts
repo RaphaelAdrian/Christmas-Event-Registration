@@ -1,5 +1,3 @@
-import { event } from "@/config/event";
-
 const TZ = "Asia/Manila";
 
 /** "Thursday, 26 November 2026" */
@@ -54,14 +52,43 @@ export function formatPeso(amount: number) {
   }).format(amount);
 }
 
-export function eventDateLine() {
-  return `${formatLongDate(event.startsAt)}, ${formatTime(event.startsAt)} to ${formatTime(event.endsAt)}`;
+/**
+ * "3:00 PM". The organisers write the end of the night (midnight) as
+ * "12:00 PM", so midnight is shown that way instead of "12:00 AM".
+ */
+export function formatClock(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(iso));
+  const hour = parts.find((p) => p.type === "hour")?.value;
+  const minute = parts.find((p) => p.type === "minute")?.value;
+  if (minute === "00" && hour === "00") return "12:00 PM";
+  return formatTime(iso);
 }
 
-export function venueLine() {
-  return [event.venue.name, event.venue.address, event.venue.city].filter(Boolean).join(", ");
+/** "3:00 PM – 12:00 PM" */
+export function timeRange(startsAt: string, endsAt: string) {
+  return `${formatClock(startsAt)} – ${formatClock(endsAt)}`;
 }
 
-export function isRegistrationOpen() {
-  return event.registrationOpen;
+/** Splits admin-entered text into paragraphs at blank lines. */
+export function paragraphs(text: string) {
+  return text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** { date: "2026-12-12", time: "15:00" } in Philippine time, for date and time inputs. */
+export function manilaParts(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${get("hour")}:${get("minute")}` };
 }

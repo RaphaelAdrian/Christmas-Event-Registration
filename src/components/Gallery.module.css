@@ -1,0 +1,277 @@
+/* A contact sheet of cut-corner frames: the first photo large, the last
+   one saying how many more (DESIGN.md §6) */
+.sheet {
+  display: grid;
+  gap: clamp(28px, 4vw, 48px);
+  padding: 0 var(--margin);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--step-head);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.9;
+}
+
+.count {
+  color: var(--cyan);
+  font-size: 0.5em;
+  vertical-align: top;
+}
+
+.hint {
+  font-size: var(--step-small);
+  color: var(--ash);
+}
+
+/* Two columns on a phone, the first photo across both */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 var(--offset) var(--offset) 0;
+}
+
+.frame {
+  --cut: 16px;
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1;
+}
+
+.grid:not([data-size="2"]) .frame:first-child {
+  grid-column: 1 / -1;
+  aspect-ratio: 3 / 2;
+}
+
+/* The violet block slides out from behind on hover and focus */
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--uv);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.frame:hover::before,
+.frame:focus-within::before {
+  transform: translate(var(--offset), var(--offset));
+}
+
+.open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: var(--void-2);
+  color: var(--bone);
+  cursor: zoom-in;
+  overflow: hidden;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+}
+
+.thumb {
+  object-fit: cover;
+  transition: transform 250ms var(--ease-out);
+}
+
+.open:hover .thumb,
+.open:focus-visible .thumb {
+  transform: scale(1.06);
+}
+
+/* The last frame: how many more open in the viewer */
+.more {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  background: rgb(0 0 0 / 0.72);
+  color: var(--acid);
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 1.5rem + 3vw, 4.5rem);
+  font-weight: 900;
+  line-height: 0.85;
+}
+
+.moreWord {
+  font-size: 0.42em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+
+/* Focus ring drawn above the photo, inside the cut shape */
+.open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-shadow: inset 0 0 0 3px var(--acid);
+  opacity: 0;
+}
+
+.open:focus-visible {
+  outline: none;
+}
+
+.open:focus-visible::after {
+  opacity: 1;
+}
+
+/* Four columns on wider screens, the first photo a 2 x 2 block */
+@media (min-width: 760px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .grid[data-size="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid[data-size="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid[data-size="1"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .frame {
+    aspect-ratio: 4 / 3;
+  }
+
+  .grid[data-size="1"] .frame:first-child {
+    aspect-ratio: 21 / 9;
+  }
+
+  .grid:not([data-size="1"], [data-size="2"]) .frame:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+    aspect-ratio: auto;
+  }
+}
+
+/* The viewer */
+.lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100svh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--void);
+  color: var(--bone);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.lightbox::backdrop {
+  background: var(--void);
+}
+
+.lightbox[open] {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  animation: viewerIn 260ms var(--ease-out);
+}
+
+@keyframes viewerIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.figure {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+  padding: var(--margin) var(--margin) 0;
+}
+
+.stage {
+  position: relative;
+  min-height: 0;
+  user-select: none;
+}
+
+.full {
+  object-fit: contain;
+  animation: photoIn 320ms var(--ease-out);
+}
+
+@keyframes photoIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0 0;
+  font-size: var(--step-body);
+}
+
+.caption > span:last-child {
+  color: var(--ash);
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px var(--margin) max(16px, env(safe-area-inset-bottom));
+}
+
+.control,
+.closeButton {
+  --cut: 6px;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  display: inline-grid;
+  place-items: center;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 2px solid var(--ash);
+  background: transparent;
+  color: var(--bone);
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease,
+    transform var(--t-fast) var(--ease-out);
+}
+
+.control:hover,
+.closeButton:hover {
+  background: var(--bone);
+  color: var(--void);
+}
+
+.control:active,
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+.closeButton {
+  margin-left: auto;
+}

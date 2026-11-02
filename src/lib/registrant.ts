@@ -1,24 +1,31 @@
-import { event } from "@/config/event";
-
 /** Outcomes of the database's resolve_registrant() / register_attendee() checks. */
 export type RegistrantOutcome =
   | "INVITED"
   | "NEW"
   | "NOT_INVITED"
   | "ALREADY_REGISTERED"
-  | "CANCELLED"
+  | "DECLINED"
   | "AMBIGUOUS_NAME"
   | "DUPLICATE_EMAIL"
-  | "NAME_REQUIRED";
+  | "NAME_REQUIRED"
+  | "COMPANY_REQUIRED";
+
+/** "write to x@y.com" when there is a contact email, otherwise "contact the organisers". */
+export function writeTo(contactEmail: string) {
+  return contactEmail ? `write to ${contactEmail}` : "contact the organisers";
+}
 
 /** What to tell the person, and which field the message belongs under. Never reveals anyone else's details. */
-export function outcomeMessage(outcome: string): { field: "firstName" | "lastName" | "email"; message: string } | null {
-  const write = event.contact.email;
+export function outcomeMessage(
+  outcome: string,
+  contactEmail: string,
+): { field: "firstName" | "lastName" | "email" | "company"; message: string } | null {
+  const write = writeTo(contactEmail);
   switch (outcome) {
     case "NOT_INVITED":
       return {
         field: "lastName",
-        message: `We can't find this name on the invite list. Use the first and last name on your invitation, or write to ${write}.`,
+        message: `We can't find this name on the invite list. Use the first and last name on your invitation, or ${write}.`,
       };
     case "AMBIGUOUS_NAME":
       return {
@@ -28,20 +35,22 @@ export function outcomeMessage(outcome: string): { field: "firstName" | "lastNam
     case "ALREADY_REGISTERED":
       return {
         field: "lastName",
-        message: `This name is already registered. To change the registration, write to ${write}.`,
+        message: `This name is already registered. To change the registration, ${write}.`,
       };
-    case "CANCELLED":
+    case "DECLINED":
       return {
         field: "lastName",
-        message: `This invitation was cancelled. Write to ${write} if you think that's a mistake.`,
+        message: `This registration was declined. If you think that's a mistake, ${write}.`,
       };
     case "DUPLICATE_EMAIL":
       return {
         field: "email",
-        message: `This email is already registered. To change your registration, write to ${write}.`,
+        message: `This email is already registered. To change your registration, ${write}.`,
       };
     case "NAME_REQUIRED":
       return { field: "firstName", message: "Enter your first and last name." };
+    case "COMPANY_REQUIRED":
+      return { field: "company", message: "Enter your company or organisation." };
     default:
       return null;
   }

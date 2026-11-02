@@ -1,64 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { event } from "@/config/event";
-import { EventPass } from "@/components/EventPass";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { formatDayMonth, formatLongDate, formatPeso, formatTime } from "@/lib/format";
-import { fieldErrors, receiptFileProblem, registrationSchema, stepSchemas } from "@/lib/validation";
+import { EventPass, type PassEvent } from "@/components/EventPass";
+import { fieldErrors, registrationSchema, stepSchemas } from "@/lib/validation";
 import { CONFIRMATION_KEY, DRAFT_KEY } from "@/lib/keys";
-import { checkRegistrant, prepareReceiptUpload, submitRegistration } from "./actions";
+import { checkRegistrant, submitRegistration } from "./actions";
 import styles from "./register.module.css";
 
-const STEPS = ["Your details", "Event instructions", "Terms and privacy", "Payment", "Review"] as const;
-const STEP_TITLES = ["Your details", "Event instructions", "Terms and privacy", "Payment", "Review and submit"];
+const STEPS = ["Your name", "Email and company", "Password", "Review"] as const;
+const STEP_TITLES = ["Your name", "Email and company", "Choose a password", "Review and submit"];
+const PASSWORD_STEP = 2;
+const LAST = STEPS.length - 1;
 
 type FormData = {
   firstName: string;
   lastName: string;
   email: string;
-  mobile: string;
   company: string;
-  jobTitle: string;
-  instructionsAck: boolean;
-  termsAccepted: boolean;
-  privacyConsent: boolean;
-  paymentReference: string;
-  receiptPath: string;
+  password: string;
+  confirm: string;
+  consent: boolean;
 };
 
-type Receipt = {
-  name: string;
-  size: number;
-  status: "uploading" | "done";
-};
+const EMPTY: FormData = { firstName: "", lastName: "", email: "", company: "", password: "", confirm: "", consent: false };
 
-const EMPTY: FormData = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  mobile: "",
-  company: "",
-  jobTitle: "",
-  instructionsAck: false,
-  termsAccepted: false,
-  privacyConsent: false,
-  paymentReference: "",
-  receiptPath: "",
-};
-
-function fileSize(bytes: number) {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
+export type WizardEvent = PassEvent & { inviteOnly: boolean; dateLine: string };
 
 export function RegisterWizard({
+  event,
   initialEmail,
   initialFirstName = "",
   initialLastName = "",
   initialCompany = "",
 }: {
+  event: WizardEvent;
   initialEmail: string;
   initialFirstName?: string;
   initialLastName?: string;
@@ -76,21 +53,21 @@ export function RegisterWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState<"" | "checking" | "submitting">("");
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [website, setWebsite] = useState("");
-  const [copied, setCopied] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const startedAt = useRef<number>(Date.now());
   const headingRef = useRef<HTMLHeadingElement>(null);
   const restored = useRef(false);
   const firstRender = useRef(true);
 
-  // Restore a draft after a refresh (the receipt itself stays uploaded).
+  // Restore a draft after a refresh.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (raw) {
-        const draft = JSON.parse(raw) as { data: FormData; step: number; receipt: Receipt | null };
-        const merged = { ...EMPTY, ...draft.data };
+        const draft = JSON.parse(raw) as { data: FormData; step: number };
+        // Passwords are never saved, so a restored draft goes back to that step at most
+        const merged = { ...EMPTY, ...draft.data, password: "", confirm: "" };
         if (initialEmail && initialEmail !== merged.email) {
           // A different invite link: start fresh for that person.
           sessionStorage.removeItem(DRAFT_KEY);
@@ -100,8 +77,7 @@ export function RegisterWizard({
           if (initialLastName) merged.lastName = initialLastName;
           if (initialCompany) merged.company = initialCompany;
           setData(merged);
-          setStep(Math.min(Math.max(0, draft.step), 4));
-          if (draft.receipt?.status === "done") setReceipt(draft.receipt);
+          setStep(Math.min(Math.max(0, draft.step), PASSWORD_STEP));
         }
       }
     } catch {
@@ -113,11 +89,11 @@ export function RegisterWizard({
   useEffect(() => {
     if (!restored.current) return;
     try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, step, receipt: receipt?.status === "done" ? receipt : null }));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data: { ...data, password: "", confirm: "" }, step }));
     } catch {
       /* ignore */
     }
-  }, [data, step, receipt]);
+  }, [data, step]);
 
   // Move focus to the step heading when the step changes.
   useEffect(() => {
@@ -145,9 +121,18 @@ export function RegisterWizard({
     const firstKey = Object.keys(errs)[0];
     if (!firstKey) return;
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(`[data-field="${firstKey}"]`);
-      el?.focus();
+      document.querySelector<HTMLElement>(`[data-field="${firstKey}"]`)?.focus();
     });
+  }
+
+  function showFailure(res: { error: string; fieldErrors?: Record<string, string>; step?: number }) {
+    if (typeof res.step === "number" && res.step < step) setStep(res.step);
+    if (res.fieldErrors) {
+      setErrors(res.fieldErrors);
+      focusFirstError(res.fieldErrors);
+    } else {
+      setFormError(res.error);
+    }
   }
 
   async function next() {
@@ -159,29 +144,26 @@ export function RegisterWizard({
       focusFirstError(errs);
       return;
     }
-    if (step === 0) {
-      // Keep the cleaned-up values (trimmed, lower-case email, +63 mobile format)
-      const clean = result.data as Partial<FormData>;
-      setData((d) => ({ ...d, ...clean }));
+    // Keep the cleaned-up values (trimmed, lower-case email)
+    const clean = { ...data, ...(result.data as Partial<FormData>) };
+    setData(clean);
+
+    // Check the name against the invite list, then the email against registrations
+    if (step < PASSWORD_STEP) {
       setBusy("checking");
       const check = await checkRegistrant({
-        firstName: clean.firstName ?? data.firstName,
-        lastName: clean.lastName ?? data.lastName,
-        email: clean.email ?? data.email,
+        firstName: clean.firstName,
+        lastName: clean.lastName,
+        email: step === 1 ? clean.email : undefined,
       });
       setBusy("");
       if (!check.ok) {
-        if (check.fieldErrors) {
-          setErrors(check.fieldErrors);
-          focusFirstError(check.fieldErrors);
-        } else {
-          setFormError(check.error);
-        }
+        showFailure(check);
         return;
       }
     }
     setErrors({});
-    setStep((s) => Math.min(s + 1, 4));
+    setStep((s) => Math.min(s + 1, LAST));
   }
 
   function back() {
@@ -190,67 +172,21 @@ export function RegisterWizard({
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  async function onReceiptChosen(file: File | undefined) {
-    if (!file) return;
-    setFormError("");
-    const problem = receiptFileProblem(file);
-    if (problem) {
-      setErrors((e) => ({ ...e, receiptPath: problem }));
-      return;
-    }
-    setReceipt({ name: file.name, size: file.size, status: "uploading" });
-    set("receiptPath", "");
-    const prepared = await prepareReceiptUpload({ type: file.type, size: file.size });
-    if (!prepared.ok) {
-      setReceipt(null);
-      setErrors((e) => ({ ...e, receiptPath: prepared.error }));
-      return;
-    }
-    const supabase = createBrowserSupabase();
-    const { error } = await supabase.storage
-      .from("receipts")
-      .uploadToSignedUrl(prepared.path, prepared.token, file, { contentType: file.type });
-    if (error) {
-      setReceipt(null);
-      setErrors((e) => ({ ...e, receiptPath: "The upload didn't finish. Check your connection and choose the file again." }));
-      return;
-    }
-    setReceipt({ name: file.name, size: file.size, status: "done" });
-    set("receiptPath", prepared.path);
-  }
-
-  async function copy(text: string) {
-    try {
-      await navigator.clipboard.writeText(text.replace(/\s/g, ""));
-      setCopied(text);
-      setTimeout(() => setCopied(""), 2000);
-    } catch {
-      /* clipboard blocked; the number is visible anyway */
-    }
-  }
-
   async function submit() {
     setFormError("");
     const result = registrationSchema.safeParse(data);
     if (!result.success) {
       const errs = fieldErrors(result.error);
       setErrors(errs);
-      setFormError("Some details need fixing. Use the Edit links to go back.");
+      if (errs.consent) focusFirstError(errs);
+      else setFormError("Some details need fixing. Use the Edit links to go back.");
       return;
     }
     setBusy("submitting");
     const res = await submitRegistration({ ...data }, { website, startedAt: startedAt.current });
     if (!res.ok) {
       setBusy("");
-      setFormError(res.error);
-      if (res.fieldErrors) {
-        setErrors(res.fieldErrors);
-        if (res.fieldErrors.receiptPath) {
-          setReceipt(null);
-          set("receiptPath", "");
-        }
-      }
-      if (typeof res.step === "number" && res.step < 4) setStep(res.step);
+      showFailure(res);
       return;
     }
     try {
@@ -260,16 +196,14 @@ export function RegisterWizard({
           referenceCode: res.referenceCode,
           fullName: `${result.data.firstName} ${result.data.lastName}`,
           company: result.data.company,
-          jobTitle: result.data.jobTitle,
           email: result.data.email,
-          paymentReference: result.data.paymentReference,
         }),
       );
       sessionStorage.removeItem(DRAFT_KEY);
     } catch {
       /* ignore */
     }
-    router.push(`/register/confirmation?ref=${encodeURIComponent(res.referenceCode)}`);
+    router.push(`/register/thanks?ref=${encodeURIComponent(res.referenceCode)}`);
   }
 
   const err = (key: keyof FormData) => errors[key];
@@ -278,11 +212,44 @@ export function RegisterWizard({
 
   const pass = (
     <EventPass
+      event={event}
       name={`${data.firstName} ${data.lastName}`.trim()}
       company={data.company}
-      jobTitle={data.jobTitle}
-      note={step === 4 ? "Reference issued when you submit" : undefined}
+      note={step === LAST ? "Reference issued when you submit" : undefined}
     />
+  );
+
+  const textField = (
+    key: "firstName" | "lastName" | "email" | "company" | "password" | "confirm",
+    label: string,
+    props: InputHTMLAttributes<HTMLInputElement> = {},
+    hint?: string,
+  ) => (
+    <div className="field">
+      <label className="label" htmlFor={key}>
+        {label}
+      </label>
+      {hint ? (
+        <p className="hint" id={`${key}-hint`}>
+          {hint}
+        </p>
+      ) : null}
+      <input
+        id={key}
+        data-field={key}
+        className="input"
+        value={data[key]}
+        onChange={(e) => set(key, e.target.value)}
+        aria-invalid={Boolean(err(key))}
+        aria-describedby={describedBy(key, Boolean(hint))}
+        {...props}
+      />
+      {err(key) ? (
+        <p className="error" id={`${key}-error`}>
+          {err(key)}
+        </p>
+      ) : null}
+    </div>
   );
 
   return (
@@ -291,9 +258,7 @@ export function RegisterWizard({
         <Link href="/" className={styles.wordmark}>
           {event.shortName}
         </Link>
-        <span className={styles.barWhen}>
-          {formatDayMonth(event.startsAt)}, {event.venue.city}
-        </span>
+        <span className={styles.barWhen}>{event.dateLine}</span>
       </header>
 
       <main id="main" className={styles.main}>
@@ -326,7 +291,7 @@ export function RegisterWizard({
               })}
             </ol>
           </nav>
-          <h1 ref={headingRef} tabIndex={-1} className={styles.stepTitle}>
+          <h1 ref={headingRef} tabIndex={-1} className={styles.stepTitle} key={step}>
             {STEP_TITLES[step]}
           </h1>
         </div>
@@ -337,417 +302,128 @@ export function RegisterWizard({
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
-              if (step < 4) void next();
+              if (step < LAST) void next();
               else void submit();
             }}
           >
             {formError ? (
-              <p className={styles.formError} role="alert">
+              <p className="notice" data-tone="error" role="alert">
                 {formError}
               </p>
             ) : null}
 
-            {step === 0 ? (
-              <fieldset className={styles.fieldset}>
-                <legend className="visually-hidden">Your details</legend>
-                <p className={styles.lead}>
-                  {event.inviteOnly
-                    ? "Registration is by invitation. Use the last name on your invitation; your first name can be the short form you go by, like Jai for Jairus. All fields are required unless marked optional."
-                    : "These go on your event pass and let us match your payment. All fields are required unless marked optional."}
-                </p>
-                <div className={styles.nameRow}>
-                  <div className="field">
-                    <label className="label" htmlFor="firstName">
-                      First name
-                    </label>
-                    <input
-                      id="firstName"
-                      data-field="firstName"
-                      className="input"
-                      autoComplete="given-name"
-                      value={data.firstName}
-                      onChange={(e) => set("firstName", e.target.value)}
-                      aria-invalid={Boolean(err("firstName"))}
-                      aria-describedby={describedBy("firstName")}
-                    />
-                    {err("firstName") ? (
-                      <p className="error" id="firstName-error">
-                        {err("firstName")}
-                      </p>
-                    ) : null}
+            <div className={styles.stepBody} key={step}>
+              {step === 0 ? (
+                <fieldset className={styles.fieldset}>
+                  <legend className="visually-hidden">Your name</legend>
+                  <p className={styles.lead}>
+                    {event.inviteOnly
+                      ? "Registration is by invitation. Use the last name on your invitation; your first name can be the short form you go by, like Jai for Jairus."
+                      : "Your name as it should appear on your pass."}
+                  </p>
+                  <div className={styles.nameRow}>
+                    {textField("firstName", "First name", { autoComplete: "given-name" })}
+                    {textField("lastName", "Last name", { autoComplete: "family-name" })}
                   </div>
-                  <div className="field">
-                    <label className="label" htmlFor="lastName">
-                      Last name
-                    </label>
-                    <input
-                      id="lastName"
-                      data-field="lastName"
-                      className="input"
-                      autoComplete="family-name"
-                      value={data.lastName}
-                      onChange={(e) => set("lastName", e.target.value)}
-                      aria-invalid={Boolean(err("lastName"))}
-                      aria-describedby={describedBy("lastName")}
+                </fieldset>
+              ) : null}
+
+              {step === 1 ? (
+                <fieldset className={styles.fieldset}>
+                  <legend className="visually-hidden">Email and company</legend>
+                  <p className={styles.lead}>
+                    You&rsquo;ll sign in with this email. The company goes on your pass.
+                  </p>
+                  {textField("email", "Email address", {
+                    type: "email",
+                    inputMode: "email",
+                    autoComplete: "email",
+                    autoCapitalize: "none",
+                    spellCheck: false,
+                  })}
+                  {textField("company", "Company", { autoComplete: "organization" }, "As it should appear on your pass.")}
+                </fieldset>
+              ) : null}
+
+              {step === PASSWORD_STEP ? (
+                <fieldset className={styles.fieldset}>
+                  <legend className="visually-hidden">Choose a password</legend>
+                  <p className={styles.lead}>
+                    You&rsquo;ll sign in with {data.email || "your email"} and this password to pay, check your status
+                    and see your pass.
+                  </p>
+                  {/* Lets password managers save the password against the right email */}
+                  <input type="email" name="username" autoComplete="username" value={data.email} readOnly hidden />
+                  {textField(
+                    "password",
+                    "Password",
+                    { type: showPassword ? "text" : "password", autoComplete: "new-password" },
+                    "At least 7 characters.",
+                  )}
+                  {textField("confirm", "Type it again", { type: showPassword ? "text" : "password", autoComplete: "new-password" })}
+                  <label className={styles.showPassword}>
+                    <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+                    Show the passwords
+                  </label>
+                </fieldset>
+              ) : null}
+
+              {step === LAST ? (
+                <div className={styles.review}>
+                  <div className={styles.reviewPass}>{pass}</div>
+                  <ReviewGroup title="Your name" onEdit={() => setStep(0)}>
+                    <Row label="First name" value={data.firstName} error={errors.firstName} />
+                    <Row label="Last name" value={data.lastName} error={errors.lastName} />
+                  </ReviewGroup>
+                  <ReviewGroup title="Email and company" onEdit={() => setStep(1)}>
+                    <Row label="Email" value={data.email} error={errors.email} />
+                    <Row label="Company" value={data.company} error={errors.company} />
+                  </ReviewGroup>
+                  <ReviewGroup title="Password" onEdit={() => setStep(PASSWORD_STEP)}>
+                    <Row
+                      label="Password"
+                      value={data.password ? "Chosen (hidden)" : ""}
+                      error={errors.password || errors.confirm}
                     />
-                    {err("lastName") ? (
-                      <p className="error" id="lastName-error">
-                        {err("lastName")}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="field">
-                  <label className="label" htmlFor="email">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    data-field="email"
-                    className="input"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    value={data.email}
-                    onChange={(e) => set("email", e.target.value)}
-                    aria-invalid={Boolean(err("email"))}
-                    aria-describedby={describedBy("email")}
-                  />
-                  {err("email") ? (
-                    <p className="error" id="email-error">
-                      {err("email")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="field">
-                  <label className="label" htmlFor="mobile">
-                    Mobile number
-                  </label>
-                  <p className="hint" id="mobile-hint">
-                    For example 0917 123 4567. We only use it to reach you about this event.
-                  </p>
-                  <input
-                    id="mobile"
-                    data-field="mobile"
-                    className="input"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    value={data.mobile}
-                    onChange={(e) => set("mobile", e.target.value)}
-                    aria-invalid={Boolean(err("mobile"))}
-                    aria-describedby={describedBy("mobile", true)}
-                  />
-                  {err("mobile") ? (
-                    <p className="error" id="mobile-error">
-                      {err("mobile")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="field">
-                  <label className="label" htmlFor="company">
-                    Company or organisation
-                  </label>
-                  <input
-                    id="company"
-                    data-field="company"
-                    className="input"
-                    autoComplete="organization"
-                    value={data.company}
-                    onChange={(e) => set("company", e.target.value)}
-                    aria-invalid={Boolean(err("company"))}
-                    aria-describedby={describedBy("company")}
-                  />
-                  {err("company") ? (
-                    <p className="error" id="company-error">
-                      {err("company")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="field">
-                  <label className="label" htmlFor="jobTitle">
-                    Job title <span className="label-optional">(optional)</span>
-                  </label>
-                  <input
-                    id="jobTitle"
-                    data-field="jobTitle"
-                    className="input"
-                    autoComplete="organization-title"
-                    value={data.jobTitle}
-                    onChange={(e) => set("jobTitle", e.target.value)}
-                    aria-invalid={Boolean(err("jobTitle"))}
-                    aria-describedby={describedBy("jobTitle")}
-                  />
-                  {err("jobTitle") ? (
-                    <p className="error" id="jobTitle-error">
-                      {err("jobTitle")}
-                    </p>
-                  ) : null}
-                </div>
-              </fieldset>
-            ) : null}
+                  </ReviewGroup>
 
-            {step === 1 ? (
-              <fieldset className={styles.fieldset}>
-                <legend className="visually-hidden">Event instructions</legend>
-                <p className={styles.lead}>
-                  {formatLongDate(event.startsAt)}, {formatTime(event.startsAt)} to {formatTime(event.endsAt)} at the{" "}
-                  {event.venue.name}, {event.venue.address}, {event.venue.city}.
-                </p>
-                <dl className={styles.instructions}>
-                  {event.instructions.map((item) => (
-                    <div key={item.question} className={styles.instruction}>
-                      <dt>{item.question}</dt>
-                      <dd>{item.answer}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <label className="check" data-invalid={Boolean(err("instructionsAck"))}>
-                  <input
-                    type="checkbox"
-                    data-field="instructionsAck"
-                    checked={data.instructionsAck}
-                    onChange={(e) => set("instructionsAck", e.target.checked)}
-                    aria-describedby={describedBy("instructionsAck")}
-                  />
-                  <span className="check-text">I have read the event instructions</span>
-                </label>
-                {err("instructionsAck") ? (
-                  <p className={`error ${styles.checkError}`} id="instructionsAck-error">
-                    {err("instructionsAck")}
-                  </p>
-                ) : null}
-              </fieldset>
-            ) : null}
-
-            {step === 2 ? (
-              <fieldset className={styles.fieldset}>
-                <legend className="visually-hidden">Terms and privacy</legend>
-                <h2 className={styles.subhead}>Terms and conditions</h2>
-                <div className={styles.scrollText} tabIndex={0} role="region" aria-label="Terms and conditions">
-                  {event.terms.map((p, i) => (
-                    <p key={i}>{p}</p>
-                  ))}
-                </div>
-                <h2 className={styles.subhead}>Privacy notice</h2>
-                <div className={styles.scrollText} tabIndex={0} role="region" aria-label="Privacy notice">
-                  {event.privacy.paragraphs.map((p, i) => (
-                    <p key={i}>{p}</p>
-                  ))}
-                  <p>
-                    Contact: {event.privacy.dataProtectionOfficer},{" "}
-                    <a href={`mailto:${event.privacy.dpoEmail}`}>{event.privacy.dpoEmail}</a>
-                  </p>
-                </div>
-                <p className={styles.smallLink}>
-                  <Link href="/terms" target="_blank">
-                    Open the terms and privacy notice in a new tab
-                  </Link>
-                </p>
-                <div className={styles.checks}>
-                  <label className="check" data-invalid={Boolean(err("termsAccepted"))}>
+                  <label className="check" data-invalid={Boolean(errors.consent)}>
                     <input
                       type="checkbox"
-                      data-field="termsAccepted"
-                      checked={data.termsAccepted}
-                      onChange={(e) => set("termsAccepted", e.target.checked)}
-                      aria-describedby={describedBy("termsAccepted")}
-                    />
-                    <span className="check-text">I agree to the terms and conditions</span>
-                  </label>
-                  {err("termsAccepted") ? (
-                    <p className={`error ${styles.checkError}`} id="termsAccepted-error">
-                      {err("termsAccepted")}
-                    </p>
-                  ) : null}
-                  <label className="check" data-invalid={Boolean(err("privacyConsent"))}>
-                    <input
-                      type="checkbox"
-                      data-field="privacyConsent"
-                      checked={data.privacyConsent}
-                      onChange={(e) => set("privacyConsent", e.target.checked)}
-                      aria-describedby={describedBy("privacyConsent")}
+                      data-field="consent"
+                      checked={data.consent}
+                      onChange={(e) => set("consent", e.target.checked)}
+                      aria-invalid={Boolean(errors.consent)}
+                      aria-describedby={errors.consent ? "consent-error" : undefined}
                     />
                     <span className="check-text">
-                      I consent to {event.organizer} collecting and processing my personal data for this event
-                      <small>
-                        As described in the privacy notice, under the Data Privacy Act of 2012 (Republic Act No. 10173).
-                      </small>
+                      I agree to the{" "}
+                      <Link href="/terms" target="_blank">
+                        terms and the privacy notice
+                      </Link>
+                      , and to the organisers using my details for this event.
                     </span>
                   </label>
-                  {err("privacyConsent") ? (
-                    <p className={`error ${styles.checkError}`} id="privacyConsent-error">
-                      {err("privacyConsent")}
+                  {errors.consent ? (
+                    <p className="error" id="consent-error">
+                      {errors.consent}
                     </p>
                   ) : null}
-                </div>
-              </fieldset>
-            ) : null}
 
-            {step === 3 ? (
-              <fieldset className={styles.fieldset}>
-                <legend className="visually-hidden">Payment</legend>
-                <div className={styles.amount}>
-                  <p className={styles.amountFigure}>{formatPeso(event.fee)}</p>
-                  <p className={styles.amountNote}>
-                    Pay by {formatDayMonth(event.paymentDeadline)}. {event.feeIncludes}
-                  </p>
-                </div>
-                <div className={styles.methods}>
-                  {event.paymentMethods.map((m) => (
-                    <section key={m.name} className={styles.method} aria-label={m.name}>
-                      <h2 className={styles.methodName}>{m.name}</h2>
-                      <dl className={styles.methodRows}>
-                        {m.bank ? (
-                          <div>
-                            <dt>Bank</dt>
-                            <dd>{m.bank}</dd>
-                          </div>
-                        ) : null}
-                        <div>
-                          <dt>Account name</dt>
-                          <dd>{m.accountName}</dd>
-                        </div>
-                        <div>
-                          <dt>Account number</dt>
-                          <dd className={styles.numberRow}>
-                            <span className="tabular">{m.accountNumber}</span>
-                            <button type="button" className="btn btn-quiet btn-small" onClick={() => copy(m.accountNumber)}>
-                              {copied === m.accountNumber ? "Copied" : "Copy number"}
-                            </button>
-                          </dd>
-                        </div>
-                      </dl>
-                      {m.note ? <p className={styles.methodNote}>{m.note}</p> : null}
-                    </section>
-                  ))}
-                </div>
-
-                <div className="field">
-                  <label className="label" htmlFor="paymentReference">
-                    Payment reference number
-                  </label>
-                  <p className="hint" id="paymentReference-hint">
-                    The reference or transaction number on your GCash or bank receipt.
-                  </p>
-                  <input
-                    id="paymentReference"
-                    data-field="paymentReference"
-                    className="input"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    value={data.paymentReference}
-                    onChange={(e) => set("paymentReference", e.target.value)}
-                    aria-invalid={Boolean(err("paymentReference"))}
-                    aria-describedby={describedBy("paymentReference", true)}
-                  />
-                  {err("paymentReference") ? (
-                    <p className="error" id="paymentReference-error">
-                      {err("paymentReference")}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="field">
-                  <span className="label" id="receipt-label">
-                    Receipt
-                  </span>
-                  <p className="hint" id="receiptPath-hint">
-                    A screenshot or photo of your receipt, or a PDF. Up to 5 MB.
-                  </p>
-                  <label
-                    className={styles.drop}
-                    data-state={receipt?.status ?? "empty"}
-                    data-invalid={Boolean(err("receiptPath"))}
-                  >
+                  <div className="hp" aria-hidden="true">
+                    <label htmlFor="website">Website</label>
                     <input
-                      type="file"
-                      data-field="receiptPath"
-                      className={styles.fileInput}
-                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
-                      aria-labelledby="receipt-label"
-                      aria-describedby={describedBy("receiptPath", true)}
-                      disabled={receipt?.status === "uploading"}
-                      onChange={(e) => {
-                        void onReceiptChosen(e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
+                      id="website"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
                     />
-                    {receipt ? (
-                      <>
-                        <span className={styles.dropTitle}>{receipt.name}</span>
-                        <span className={styles.dropMeta} aria-live="polite">
-                          {receipt.status === "uploading" ? "Uploading…" : `Uploaded, ${fileSize(receipt.size)}. Tap to replace.`}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className={styles.dropTitle}>Choose your receipt</span>
-                        <span className={styles.dropMeta}>JPG, PNG, HEIC or PDF</span>
-                      </>
-                    )}
-                  </label>
-                  {err("receiptPath") ? (
-                    <p className="error" id="receiptPath-error">
-                      {err("receiptPath")}
-                    </p>
-                  ) : null}
+                  </div>
                 </div>
-              </fieldset>
-            ) : null}
-
-            {step === 4 ? (
-              <div className={styles.review}>
-                <div className={styles.reviewPass}>{pass}</div>
-                <ReviewGroup title="Your details" onEdit={() => setStep(0)}>
-                  <Row label="First name" value={data.firstName} error={errors.firstName} />
-                  <Row label="Last name" value={data.lastName} error={errors.lastName} />
-                  <Row label="Email" value={data.email} error={errors.email} />
-                  <Row label="Mobile" value={data.mobile} error={errors.mobile} />
-                  <Row label="Company" value={data.company} error={errors.company} />
-                  {data.jobTitle ? <Row label="Job title" value={data.jobTitle} /> : null}
-                </ReviewGroup>
-                <ReviewGroup title="Event instructions" onEdit={() => setStep(1)}>
-                  <Row
-                    label="Instructions"
-                    value={data.instructionsAck ? "Read" : "Not yet confirmed"}
-                    error={errors.instructionsAck}
-                  />
-                </ReviewGroup>
-                <ReviewGroup title="Terms and privacy" onEdit={() => setStep(2)}>
-                  <Row label="Terms" value={data.termsAccepted ? "Agreed" : "Not agreed"} error={errors.termsAccepted} />
-                  <Row
-                    label="Data privacy consent"
-                    value={data.privacyConsent ? "Given" : "Not given"}
-                    error={errors.privacyConsent}
-                  />
-                </ReviewGroup>
-                <ReviewGroup title="Payment" onEdit={() => setStep(3)}>
-                  <Row label="Amount" value={formatPeso(event.fee)} />
-                  <Row label="Reference number" value={data.paymentReference} error={errors.paymentReference} />
-                  <Row
-                    label="Receipt"
-                    value={receipt?.status === "done" ? receipt.name : "Not uploaded"}
-                    error={errors.receiptPath}
-                  />
-                </ReviewGroup>
-
-                <div className="hp" aria-hidden="true">
-                  <label htmlFor="website">Website</label>
-                  <input
-                    id="website"
-                    name="website"
-                    tabIndex={-1}
-                    autoComplete="off"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                  />
-                </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
 
             <div className={styles.actions}>
               {step > 0 ? (
@@ -759,13 +435,8 @@ export function RegisterWizard({
                   Event details
                 </Link>
               )}
-              <button
-                type="submit"
-                className="btn"
-                disabled={busy !== "" || receipt?.status === "uploading"}
-                aria-busy={busy !== ""}
-              >
-                {step < 4
+              <button type="submit" className="btn" disabled={busy !== ""} aria-busy={busy !== ""}>
+                {step < LAST
                   ? busy === "checking"
                     ? "Checking…"
                     : "Continue"
@@ -779,9 +450,7 @@ export function RegisterWizard({
           <aside className={styles.passCol} aria-label="Your event pass preview">
             <div className={styles.passSticky}>
               {pass}
-              <p className={styles.passCaption}>
-                Your pass fills in as you type. The reference code arrives when you submit.
-              </p>
+              <p className={styles.passCaption}>Your pass fills in as you type. The reference code arrives when you submit.</p>
             </div>
           </aside>
         </div>

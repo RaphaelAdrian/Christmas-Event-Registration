@@ -1,15 +1,16 @@
-import { event } from "@/config/event";
 import { requireAdmin } from "@/lib/admin";
+import { getEventSettings } from "@/lib/event";
 import { formatDateTimePH } from "@/lib/format";
-import { STATUS_LABELS, type AttendeeStatus } from "@/lib/statuses";
+import { REGISTRATION_LABELS, type RegistrationStatus } from "@/lib/statuses";
 import { AddInviteForm, ImportForm, InviteActions } from "./InviteForms";
 import styles from "../../admin.module.css";
 
 export default async function InvitesPage() {
   const { supabase } = await requireAdmin();
+  const event = await getEventSettings();
   const { data, error } = await supabase
     .from("attendees")
-    .select("id, first_name, last_name, full_name, name_as_entered, email, status, invited_at")
+    .select("id, first_name, last_name, full_name, name_as_entered, email, registration_status, invited_at")
     .not("invited_at", "is", null)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true })
@@ -22,10 +23,10 @@ export default async function InvitesPage() {
     full_name: string;
     name_as_entered: string | null;
     email: string | null;
-    status: AttendeeStatus;
+    registration_status: RegistrationStatus;
     invited_at: string;
   }[];
-  const waiting = rows.filter((r) => r.status === "invited").length;
+  const waiting = rows.filter((r) => r.registration_status === "invited").length;
 
   return (
     <>
@@ -34,8 +35,8 @@ export default async function InvitesPage() {
         <p className={styles.pageNote}>
           {event.inviteOnly ? "Only people on this list can register. " : ""}
           A registration matches someone here when the last name is the same and the first name fits: &ldquo;Jai
-          Plantig&rdquo; matches &ldquo;Jairus Miguel Plantig&rdquo;. Their status then changes from Invited to
-          Confirmed, and a name that is already registered can&rsquo;t register again.
+          Plantig&rdquo; matches &ldquo;Jairus Miguel Plantig&rdquo;. Their registration then waits for approval
+          on the Registrants page, and a name that is already registered can&rsquo;t register again.
         </p>
       </div>
 
@@ -92,8 +93,8 @@ export default async function InvitesPage() {
                     </td>
                     <td>{r.email ?? <span className={styles.muted}>None</span>}</td>
                     <td>
-                      <span className={styles.chip} data-status={r.status}>
-                        {STATUS_LABELS[r.status]}
+                      <span className={styles.chip} data-status={r.registration_status}>
+                        {REGISTRATION_LABELS[r.registration_status]}
                       </span>
                     </td>
                     <td className={styles.nowrap}>{formatDateTimePH(r.invited_at)}</td>
@@ -103,7 +104,7 @@ export default async function InvitesPage() {
                         firstName={r.first_name}
                         lastName={r.last_name}
                         email={r.email}
-                        canRemove={r.status === "invited"}
+                        canRemove={r.registration_status === "invited"}
                       />
                     </td>
                   </tr>

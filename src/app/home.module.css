@@ -1,635 +1,701 @@
 /* ==========================================================================
-   Hero: a void, then the name hung from an axis at 42% of the width
+   Neon Christmas home page (DESIGN.md). Fields in order: photo hero, red
+   countdown, black route, raised venue, black details, red pass, black
+   photos, acid band, bone footer. Sections meet on shard edges.
+   ========================================================================== */
+
+/* A section that tears into the one above it */
+.torn {
+  position: relative;
+  margin-top: calc(-1 * var(--shard));
+  padding-top: calc(var(--shard) + var(--section-gap));
+  clip-path: var(--shard-edge);
+}
+
+/* ==========================================================================
+   Hero: the resort at dusk, the event name glitching in along the bottom
    ========================================================================== */
 .hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto auto;
   min-height: 100svh;
-  padding: 28px var(--margin) clamp(40px, 8vh, 80px);
-  background: var(--sky);
+  padding: 20px var(--margin) calc(28px + var(--shard));
+  background: var(--void);
+  color: var(--bone);
+  overflow: clip;
+}
+
+.heroPhoto {
+  z-index: -2;
+  object-fit: cover;
+  object-position: 62% 40%;
+  animation: settle 2400ms var(--ease-out) both;
+}
+
+@keyframes settle {
+  from {
+    transform: scale(1.06);
+  }
+}
+
+/* A neutral black scrim under the type; the one permitted gradient */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.92) 0%,
+    rgb(0 0 0 / 0.66) 36%,
+    rgb(0 0 0 / 0.08) 66%,
+    rgb(0 0 0 / 0.5) 100%
+  ); /* taste-skill-ignore: neutral scrim under text on a photograph */
 }
 
 .topRow {
-  display: grid;
-  grid-template-columns: 42% 1fr auto;
-  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   gap: 16px;
 }
 
 .wordmark {
+  font-family: var(--font-display);
   font-size: var(--step-lead);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-weight: 800;
+  text-transform: uppercase;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .links {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 32px;
+  gap: 20px;
+  font-size: var(--step-small);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .links a {
-  font-weight: 500;
-  text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-decoration-thickness: 2px;
-  transition: text-decoration-color var(--t-fast) ease;
+  text-decoration: none;
 }
 
-.links a:hover,
-.links a:focus-visible {
-  text-decoration-color: currentColor;
+.links a:hover {
+  color: var(--acid);
+  text-decoration: underline;
+  text-decoration-color: var(--acid);
 }
 
-.heroBottom {
-  align-self: end;
-  display: grid;
-  grid-template-columns: 42% 1fr;
-  grid-template-areas: "aside statement";
-  align-items: end;
-  gap: 24px;
-  padding-top: 32vh;
+.optionalLink {
+  display: none;
 }
 
-.statement {
-  grid-area: statement;
-  font-size: var(--step-display);
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 0.95;
+.monument {
+  grid-row: 3;
+  margin: 0 0 3vh;
+  /* Big enough that the longest line nearly fills the width; --chars is set by the page */
+  font-size: min(calc((100vw - 2 * var(--margin)) / (var(--chars, 16) * 0.44)), 26vw);
+  line-height: 0.84;
+  text-wrap: nowrap;
+  scroll-margin-top: 20px;
 }
 
 .line {
   display: block;
-  overflow: hidden;
-  padding-bottom: 0.08em;
-  margin-bottom: -0.08em;
+  padding-bottom: 0.04em;
 }
 
+/* The signature move: the name arrives as jumping slices, then settles with
+   its violet misregistration edge */
 .lineInner {
-  display: inline-block;
-  animation: rise 900ms var(--ease-out) both;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.14em;
+  text-shadow: 0.035em 0.035em 0 var(--uv);
+  animation: glitch 520ms steps(1, end) both;
 }
 
-@keyframes rise {
-  from {
-    transform: translateY(108%);
-  }
-  to {
-    transform: none;
-  }
-}
-
-.heroAside {
-  grid-area: aside;
-  display: grid;
-  gap: 6px;
-  max-width: 30ch;
-  padding-bottom: 0.4em;
-  animation: fadeUp 700ms var(--ease-out) 520ms both;
-}
-
-@keyframes fadeUp {
-  from {
+@keyframes glitch {
+  0% {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateX(-0.06em);
+    clip-path: inset(0 0 70% 0);
+    text-shadow: 0.08em 0 0 var(--cyan), -0.08em 0 0 var(--uv);
   }
-  to {
+  15% {
+    opacity: 1;
+    transform: translateX(0.05em);
+    clip-path: inset(45% 0 15% 0);
+  }
+  30% {
+    transform: translateX(-0.03em);
+    clip-path: inset(10% 0 55% 0);
+    text-shadow: -0.05em 0 0 var(--cyan), 0.06em 0 0 var(--uv);
+  }
+  45% {
+    transform: translateX(0.04em);
+    clip-path: inset(60% 0 0 0);
+  }
+  60% {
+    transform: translateX(-0.02em);
+    clip-path: inset(0);
+    text-shadow: 0.03em 0 0 var(--cyan), -0.03em 0 0 var(--uv);
+  }
+  75%,
+  100% {
     opacity: 1;
     transform: none;
+    clip-path: inset(0);
+    text-shadow: 0.035em 0.035em 0 var(--uv);
   }
 }
 
-.when {
-  font-size: var(--step-lead);
-  font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+.glyph {
+  flex: none;
+  width: 0.56em;
+  height: auto;
+  align-self: center;
+  margin-top: -0.06em;
+  color: var(--acid);
+  --parol-core: var(--bone);
+  filter: none;
+  transform-origin: 50% 0;
+  animation: sway 6s 1200ms ease-in-out infinite;
 }
 
-.where {
+@keyframes sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.heroFoot {
+  grid-row: 4;
+  display: grid;
+  gap: 24px;
+}
+
+.heroFacts {
+  display: grid;
+  gap: 10px;
+}
+
+.heroDate {
   font-size: var(--step-lead);
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  color: var(--navy-soft);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.heroVenue {
+  color: var(--ash);
+}
+
+.heroVenue a {
+  color: var(--bone);
+  white-space: nowrap;
 }
 
 .heroAction {
-  display: none;
+  display: grid;
+  gap: 20px;
+  justify-items: start;
 }
 
-.closed {
-  margin-top: 20px;
-  font-weight: 600;
+.tagline {
+  max-width: 40ch;
 }
 
-@media (max-width: 899px) {
-  .topRow {
-    grid-template-columns: 1fr auto;
+@media (min-width: 760px) {
+  .optionalLink {
+    display: list-item;
   }
-  .links {
-    display: none;
+
+  .heroFoot {
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
   }
-  .topAction {
-    min-height: 44px;
-    padding: 0 18px;
-  }
-  .heroBottom {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "statement"
-      "aside";
-    gap: 20px;
-    padding-top: 40svh;
-  }
-  .statement {
-    font-size: clamp(2.75rem, 12.5vw, 5rem);
-  }
-  .heroAside {
-    max-width: none;
-  }
+
   .heroAction {
-    display: inline-flex;
-    width: 100%;
-    margin-top: 22px;
-  }
-  .topAction {
-    display: none;
+    justify-items: end;
+    text-align: right;
   }
 }
 
 /* ==========================================================================
-   Intro: title, note, and the facts set like a printed programme line
+   Countdown: the red billboard, with print grain
    ========================================================================== */
-.intro {
-  padding: clamp(56px, 8vw, 120px) var(--margin) var(--section-gap);
-  background: var(--sky);
-}
-
-.introTop {
+.countdown {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
-  align-items: end;
+  gap: clamp(28px, 4vw, 56px);
+  padding-right: var(--margin);
+  padding-bottom: calc(clamp(72px, 10vw, 140px) + var(--shard));
+  padding-left: var(--margin);
+  background-color: var(--signal);
+  background-image: var(--grain);
+  color: var(--void);
 }
 
-.introHeading {
-  grid-column: 1 / span 7;
+.countdownHeading {
   font-size: var(--step-head);
 }
 
-.introNote {
-  grid-column: 9 / span 4;
-  max-width: 34ch;
+.countdownNote {
+  font-weight: 500;
 }
 
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 40px 48px;
-  margin: clamp(64px, 9vw, 128px) 0 0;
+/* ==========================================================================
+   Getting there: three lines stepping across the page
+   ========================================================================== */
+.route {
+  padding-right: var(--margin);
+  padding-bottom: calc(var(--section-gap) + var(--shard));
+  padding-left: var(--margin);
+  background: var(--void);
 }
 
-.fact {
-  min-width: 0;
+.stairs {
+  display: grid;
+  gap: 48px;
 }
 
-.factBig {
+.stair {
+  display: grid;
+  gap: 14px;
+}
+
+.stair:nth-child(2) {
+  padding-left: 6vw;
+}
+
+.stair:nth-child(3) {
+  padding-left: 12vw;
+}
+
+.stairLine {
+  font-family: var(--font-display);
   font-size: var(--step-head);
-  font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.9;
+  text-wrap: balance;
 }
 
-.factSmall {
-  margin-top: 12px;
-  max-width: 24ch;
-  font-size: var(--step-small);
-  color: var(--navy-soft);
-  line-height: 1.4;
+.stairNote {
+  max-width: 40ch;
+  color: var(--ash);
 }
 
-.mapLink {
-  margin-top: 48px;
-  font-weight: 500;
+.stairNote a {
+  color: var(--bone);
 }
 
-@media (max-width: 899px) {
-  .introTop {
-    grid-template-columns: 1fr;
+@media (min-width: 900px) {
+  .stairs {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 56px;
   }
-  .introHeading,
-  .introNote {
+
+  .stair {
     grid-column: 1 / -1;
   }
-  .facts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 36px 20px;
+
+  .stair:nth-child(2),
+  .stair:nth-child(3) {
+    padding-left: 0;
+  }
+
+  .stair:nth-child(2) {
+    grid-column: 3 / -1;
+  }
+
+  .stair:nth-child(3) {
+    grid-column: 5 / -1;
   }
 }
 
-/* Optional venue photo, full width between the facts and the schedule */
-.photoBand {
-  margin: 0;
-  background: var(--navy);
+/* ==========================================================================
+   The venue: one step up from black
+   ========================================================================== */
+.venue {
+  display: grid;
+  gap: clamp(32px, 4vw, 48px);
+  padding-right: var(--margin);
+  padding-bottom: calc(var(--section-gap) + var(--shard));
+  padding-left: var(--margin);
+  background: var(--void-3);
 }
 
-.photoBand img {
+.venueText {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+}
+
+.venueLead {
+  max-width: 28ch;
+  font-size: var(--step-lead);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Photo and video frames: cut corners with a violet block behind */
+.frame {
+  --cut: 16px;
+  position: relative;
+  isolation: isolate;
+  margin: 0 var(--offset) var(--offset) 0;
+}
+
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--uv);
+  transform: translate(var(--offset), var(--offset));
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+}
+
+.frame > * {
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+}
+
+.venueVideo {
+  justify-self: center;
+  width: min(calc(100% - var(--offset)), 420px);
+  aspect-ratio: 9 / 16;
+  max-height: 82svh;
+}
+
+.video {
+  display: block;
   width: 100%;
-  height: clamp(280px, 56vw, 760px);
+  height: 100%;
+  object-fit: cover;
+  background: var(--void-2);
+}
+
+.venueDay,
+.venueNight {
+  display: grid;
+  gap: 14px;
+}
+
+.venueImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.venueNight .venueImage {
+  aspect-ratio: 4 / 5;
   object-fit: cover;
 }
 
-/* ==========================================================================
-   Schedule: one item per poster line on a navy field
-   ========================================================================== */
-.schedule {
-  padding: clamp(72px, 9vw, 128px) var(--margin);
-  background: var(--navy);
-  color: var(--paper);
+.venueCaption {
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
-.scheduleHeading {
-  margin-bottom: clamp(40px, 6vw, 80px);
+@media (min-width: 900px) {
+  .venue {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: clamp(48px, 6vw, 96px);
+    align-items: start;
+  }
+
+  .venueText {
+    grid-column: 1 / span 5;
+    align-self: center;
+  }
+
+  .venueVideo {
+    grid-column: 7 / span 5;
+    justify-self: stretch;
+    width: auto;
+  }
+
+  .venueDay {
+    grid-column: 1 / span 7;
+    align-self: end;
+  }
+
+  .venueNight {
+    grid-column: 9 / span 4;
+  }
+}
+
+/* ==========================================================================
+   Additional details
+   ========================================================================== */
+.details {
+  padding-right: var(--margin);
+  padding-bottom: calc(var(--section-gap) + var(--shard));
+  padding-left: var(--margin);
+  background: var(--void);
+}
+
+.sectionHeading {
+  font-size: var(--step-head);
+}
+
+.detailList {
+  display: grid;
+  gap: 40px;
+  margin-top: clamp(40px, 6vw, 80px);
+}
+
+.detail {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+  box-shadow: inset 4px 0 0 var(--uv);
+}
+
+.detailTitle {
   font-size: var(--step-lead);
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-weight: 600;
   line-height: 1.2;
-  color: #b9d9f5;
 }
 
-.poster {
+.detailBody {
   display: grid;
+  gap: 12px;
+  max-width: var(--measure);
 }
 
-.posterItem {
+@media (min-width: 900px) {
+  .detail {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 32px;
+  }
+}
+
+/* ==========================================================================
+   Your pass: the second red field, the live ticket
+   ========================================================================== */
+.pass {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 18rem) 7.5rem;
-  align-items: baseline;
+  gap: clamp(40px, 6vw, 72px);
+  padding-right: var(--margin);
+  padding-bottom: calc(var(--section-gap) + var(--shard));
+  padding-left: var(--margin);
+  background-color: var(--signal);
+  background-image: var(--grain);
+  color: var(--void);
+}
+
+.pass a {
+  text-decoration-color: var(--void);
+}
+
+.passText {
+  display: grid;
   gap: 32px;
-  padding: 0.06em 0;
-}
-
-.posterTitle {
-  font-size: var(--step-display);
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 0.95;
-  transition: color var(--t-fast) ease;
-}
-
-.posterItem:hover .posterTitle {
-  color: var(--orange);
-}
-
-.posterTime {
-  font-size: var(--step-lead);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  text-align: right;
-}
-
-.posterDetail {
-  font-size: var(--step-small);
-  color: #b9d9f5;
-  text-align: right;
-}
-
-@media (max-width: 1099px) and (min-width: 700px) {
-  .posterItem {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 12rem) 6.5rem;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 699px) {
-  .posterItem {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "title title"
-      "detail time";
-    gap: 4px 16px;
-    padding: 0 0 26px;
-  }
-  .posterTitle {
-    grid-area: title;
-    font-size: clamp(2.5rem, 12vw, 3.5rem);
-  }
-  .posterDetail {
-    grid-area: detail;
-    text-align: left;
-  }
-  .posterTime {
-    grid-area: time;
-  }
-}
-
-/* ==========================================================================
-   Payment: the accounts as a large table on paper
-   ========================================================================== */
-.payment {
-  padding: var(--section-gap) var(--margin);
-  background: var(--paper);
-}
-
-.paymentHead {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
-  align-items: end;
-}
-
-.paymentHeading {
-  grid-column: 1 / span 7;
-  font-size: var(--step-head);
-}
-
-.paymentNote {
-  grid-column: 9 / span 4;
-  max-width: 36ch;
-}
-
-.payTable {
-  width: 100%;
-  margin-top: clamp(48px, 6vw, 96px);
-  border-collapse: collapse;
-  font-size: var(--step-lead);
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  table-layout: fixed;
-}
-
-.payTable thead th {
-  padding: 0 24px 20px;
-  text-align: left;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
-
-.payTable tbody tr:nth-child(odd) {
-  background: var(--sky-pale);
-}
-
-.payTable tbody th {
-  width: 30%;
-  padding: 20px 24px;
-  text-align: left;
-  font-weight: 400;
-  color: var(--navy-soft);
-}
-
-.payTable td {
-  padding: 20px 24px;
-  vertical-align: top;
-}
-
-.accountNumber {
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.payBlocks {
-  display: none;
-}
-
-.payAction {
-  margin-top: 48px;
-}
-
-@media (max-width: 899px) {
-  .paymentHead {
-    grid-template-columns: 1fr;
-  }
-  .paymentHeading,
-  .paymentNote {
-    grid-column: 1 / -1;
-  }
-  .payTable {
-    display: none;
-  }
-  .payBlocks {
-    display: grid;
-    gap: 16px;
-    margin-top: 40px;
-  }
-  .payBlock {
-    padding: 24px 20px;
-    background: var(--sky-pale);
-  }
-  .payBlockName {
-    font-size: clamp(2rem, 9vw, 2.5rem);
-    margin-bottom: 18px;
-  }
-  .payBlock dl {
-    display: grid;
-    gap: 4px;
-  }
-  .payBlock dt {
-    font-size: var(--step-small);
-    color: var(--navy-soft);
-  }
-  .payBlock dd + dt {
-    margin-top: 12px;
-  }
-  .payAction :global(.btn) {
-    width: 100%;
-  }
-}
-
-/* ==========================================================================
-   How to register: the five steps, and the pass that fills in as you type
-   ========================================================================== */
-.how {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
-  padding: var(--section-gap) var(--margin);
-  background: var(--sky);
-}
-
-.howText {
-  grid-column: 1 / span 5;
-}
-
-.howHeading {
-  font-size: var(--step-head);
 }
 
 .steps {
   display: grid;
-  gap: 18px;
-  margin-top: clamp(32px, 4vw, 56px);
-  padding-left: 1.5em;
-  list-style: decimal;
-  max-width: 44ch;
+  gap: 14px;
+  max-width: 46ch;
+  font-weight: 500;
 }
 
-.step::marker {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.step strong {
-  font-weight: 600;
-}
-
-.howPass {
-  grid-column: 7 / -1;
-  align-self: end;
-}
-
-.howLead {
-  margin-bottom: 28px;
-  font-size: var(--step-lead);
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-  max-width: 30ch;
-}
-
-@media (max-width: 899px) {
-  .how {
-    grid-template-columns: 1fr;
-    gap: 56px;
-  }
-  .howText,
-  .howPass {
-    grid-column: 1 / -1;
+@media (min-width: 900px) {
+  .passText {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 64px;
   }
 }
 
 /* ==========================================================================
-   Instructions: answers as reading text, like the notes in a programme
+   Photos
    ========================================================================== */
-.instructions {
+.photos {
+  padding-bottom: calc(var(--section-gap) + var(--shard));
+  background: var(--void);
+}
+
+/* ==========================================================================
+   The whole band is the action
+   ========================================================================== */
+.band {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
-  padding: var(--section-gap) var(--margin);
-  background: var(--paper);
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  min-height: 46svh;
+  padding: calc(20px + var(--shard)) var(--margin) calc(24px + var(--shard));
+  background: var(--acid);
+  color: var(--void);
+  text-decoration: none;
+  overflow: hidden;
 }
 
-.instructionsHeading {
-  grid-column: 1 / span 4;
-  font-size: var(--step-head);
-  align-self: start;
+.band.torn {
+  padding-top: calc(20px + var(--shard));
 }
 
-.answers {
-  grid-column: 5 / -1;
-  columns: 2;
-  column-gap: 56px;
+.band:hover,
+.band:focus-visible {
+  background: var(--void);
+  color: var(--acid);
 }
 
-.answer {
-  break-inside: avoid;
-  margin-bottom: 22px;
-  line-height: 1.55;
+.band:focus-visible {
+  outline-offset: -6px;
 }
 
-.answer strong {
+.bandNote {
+  max-width: 34ch;
+  font-size: var(--step-body);
   font-weight: 600;
+  line-height: 1.4;
 }
 
-@media (max-width: 899px) {
-  .instructions {
-    grid-template-columns: 1fr;
+.bandArrow {
+  width: 32px;
+  height: 32px;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.band:hover .bandArrow {
+  transform: translate(4px, -4px);
+}
+
+.bandWord {
+  grid-column: 1 / -1;
+  align-self: end;
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 25vw, 30rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.78;
+  white-space: nowrap;
+  text-shadow: 0.03em 0.03em 0 var(--uv);
+}
+
+@media (min-width: 760px) {
+  .band {
+    min-height: 60svh;
   }
-  .instructionsHeading,
-  .answers {
-    grid-column: 1 / -1;
-  }
-  .answers {
-    columns: 1;
-    margin-top: 16px;
+
+  .bandArrow {
+    width: 48px;
+    height: 48px;
   }
 }
 
 /* ==========================================================================
-   Close: the email as display type, then the name, cut by the bottom edge
+   Footer: bone field, the whole name set to the width, its foot cropped by
+   the bottom edge
    ========================================================================== */
 .close {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(40px, 6vw, 72px);
+  padding-right: var(--margin);
+  padding-left: var(--margin);
+  background: var(--bone);
+  color: var(--void);
   overflow: hidden;
-  padding: clamp(72px, 9vw, 128px) var(--margin) 0;
-  background: var(--navy);
-  color: var(--paper);
 }
 
-.closeLead {
-  max-width: 26ch;
-  font-size: var(--step-lead);
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+.close.torn {
+  padding-top: calc(var(--shard) + clamp(56px, 8vw, 104px));
 }
 
-.bigEmail {
-  display: block;
-  margin-top: clamp(72px, 14vh, 168px);
-  font-weight: 500;
-  letter-spacing: -0.05em;
-  line-height: 1;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-  transition: color var(--t-fast) ease;
+.closeTop {
+  display: grid;
+  gap: 32px;
 }
 
-.bigEmail:hover {
-  color: var(--orange);
+.inviteLine {
+  font-family: var(--font-display);
+  font-size: var(--step-head);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.9;
 }
 
-.closeRow {
+.closeLinks {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 24px;
-  margin-top: 56px;
-  font-size: var(--step-small);
-}
-
-.closePlaces,
-.closeLinks {
-  display: grid;
-  gap: 8px;
-}
-
-.closeLinks {
-  text-align: right;
-}
-
-.closeRow a {
-  text-decoration: none;
-}
-
-.closeRow a:hover {
-  text-decoration: underline;
+  gap: 12px 24px;
+  font-weight: 500;
 }
 
 .legal {
-  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-top: 16px;
+  box-shadow: inset 0 2px 0 var(--void);
   font-size: var(--step-small);
-  color: #b9d9f5;
+  color: var(--ink-soft);
 }
 
+/* A phone sets two balanced lines, sized so the longer one fills the width */
 .footerName {
-  margin: 32px 0 -0.12em;
-  font-weight: 600;
-  letter-spacing: -0.05em;
+  margin: calc(-1 * clamp(16px, 3vw, 40px)) 0 -0.16em;
+  font-family: var(--font-display);
+  font-size: calc((100vw - 2 * var(--margin)) / (var(--line-chars, 13) * 0.5));
+  font-weight: 900;
+  text-transform: uppercase;
   line-height: 0.8;
-  white-space: nowrap;
-  color: var(--sky);
 }
 
-@media (max-width: 699px) {
-  .closeRow {
-    display: grid;
+.footerLine {
+  display: block;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .closeTop {
+    grid-template-columns: 7fr 5fr;
+    align-items: end;
   }
+
   .closeLinks {
-    text-align: left;
+    flex-direction: column;
+    justify-self: end;
+  }
+
+  /* One line across, sized from the whole name */
+  .footerName {
+    font-size: calc((100vw - 2 * var(--margin)) / (var(--chars, 19) * 0.47));
+    white-space: nowrap;
+  }
+
+  .footerLine {
+    display: inline;
   }
 }

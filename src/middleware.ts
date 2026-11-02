@@ -2,9 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 /**
- * Keeps the admin's login session fresh and sends logged-out visitors
- * from /admin pages to the login page. (The real protection is Row Level
- * Security in the database; this just gives people the right screen.)
+ * Keeps the login session fresh and sends logged-out visitors from /admin
+ * and /account pages to the right sign-in page. (The real protection is Row
+ * Level Security in the database; this just gives people the right screen.)
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -31,9 +31,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isLogin = path === "/admin/login";
+  if (user) return response;
 
-  if (!user && !isLogin) {
+  if (path.startsWith("/admin") && path !== "/admin/login") {
     if (path.startsWith("/admin/export") || path.startsWith("/admin/receipts") || path.startsWith("/admin/invites-template")) {
       return new NextResponse("Sign in as an admin first.", { status: 401 });
     }
@@ -43,9 +43,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
+  if (path.startsWith("/account")) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.search = `?next=${encodeURIComponent(path)}`;
+    return NextResponse.redirect(login);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/account/:path*", "/login"],
 };

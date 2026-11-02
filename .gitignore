@@ -14,6 +14,7 @@ next-env.d.ts
 # Local tooling
 .vercel/
 .taste-skill/
+.claude/
 .DS_Store
 npm-debug.log*
 test-results/

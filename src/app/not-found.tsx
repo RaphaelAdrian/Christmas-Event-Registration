@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { event } from "@/config/event";
+import { getEventSettings } from "@/lib/event";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const event = await getEventSettings();
   return (
     <main
       id="main"

@@ -1,102 +1,103 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
-import { isStatus, STATUSES, STATUS_LABELS, type Attendee, type AttendeeStatus } from "@/lib/statuses";
-import { AttendeeTable } from "./AttendeeTable";
-import { Filters } from "./Filters";
+import { formatPeso, manilaParts } from "@/lib/format";
+import { RegistrationsChart, type DayCount } from "./RegistrationsChart";
 import styles from "../admin.module.css";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+export const metadata = { title: "Dashboard" };
 
-const COLUMNS =
-  "id, reference_code, first_name, last_name, full_name, name_as_entered, email, mobile, company, job_title, status, payment_reference, receipt_path, invited_at, registered_at, paid_at, cancelled_at, created_at";
+type Stats = {
+  registered: number;
+  pending: number;
+  approved: number;
+  declined: number;
+  submitted: number;
+  paid: number;
+  unpaid: number;
+  invited: number;
+  collected: number;
+  by_day: DayCount[];
+};
 
-function one(v: string | string[] | undefined) {
-  return (Array.isArray(v) ? v[0] : v) ?? "";
-}
-
-export default async function AttendeesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DashboardPage() {
   const { supabase } = await requireAdmin();
-  const params = await searchParams;
-  const q = one(params.q).trim().slice(0, 100);
-  const status = isStatus(one(params.status)) ? (one(params.status) as AttendeeStatus) : null;
+  const { data, error } = await supabase.rpc("dashboard_stats");
+  const s = data as Stats | null;
 
-  // Totals for each status
-  const counts = await Promise.all(
-    STATUSES.map(async (s) => {
-      const { count } = await supabase.from("attendees").select("id", { count: "exact", head: true }).eq("status", s);
-      return [s, count ?? 0] as const;
-    }),
-  );
-  const totals = Object.fromEntries(counts) as Record<AttendeeStatus, number>;
-  const total = counts.reduce((sum, [, n]) => sum + n, 0);
-
-  // The table
-  let query = supabase.from("attendees").select(COLUMNS).order("created_at", { ascending: false }).limit(1000);
-  if (status) query = query.eq("status", status);
-  if (q) {
-    // Characters that would break the filter syntax are treated as spaces
-    const term = q.replace(/[,()*%\\"']/g, " ").replace(/\s+/g, " ").trim();
-    if (term) {
-      const like = `%${term}%`;
-      query = query.or(
-        ["full_name", "name_as_entered", "email", "company", "mobile", "reference_code", "payment_reference"]
-          .map((c) => `${c}.ilike.${like}`)
-          .join(","),
-      );
-    }
+  if (error || !s) {
+    return (
+      <div className={styles.formError}>
+        Couldn&rsquo;t load the numbers. If this is a new setup, run the latest migration in the Supabase SQL Editor.
+      </div>
+    );
   }
-  const { data, error } = await query;
-  const rows = (data ?? []) as Attendee[];
+
+  const cards: { label: string; value: string | number; href?: string }[] = [
+    { label: "Total registered", value: s.registered, href: "/admin/registrants" },
+    { label: "Pending approval", value: s.pending, href: "/admin/registrants?status=pending" },
+    { label: "Approved", value: s.approved, href: "/admin/registrants?status=approved" },
+    { label: "Declined", value: s.declined, href: "/admin/registrants?status=declined" },
+    { label: "Payments to review", value: s.submitted, href: "/admin/payments" },
+    { label: "Paid", value: s.paid, href: "/admin/registrants?pay=paid" },
+    { label: "Not paid yet (pending or approved, nothing sent)", value: s.unpaid, href: "/admin/registrants?pay=notpaid" },
+    { label: "Invited, not registered", value: s.invited, href: "/admin/invites" },
+  ];
 
   return (
     <>
       <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>Attendees</h1>
-        <p className={styles.pageNote}>Change a status from the list in each row. Changes save straight away.</p>
+        <h1 className={styles.pageTitle}>Dashboard</h1>
+        <p className={styles.pageNote}>
+          {s.pending ? (
+            <>
+              <Link href="/admin/registrants?status=pending">{s.pending} waiting for approval</Link>
+              {s.submitted ? (
+                <>
+                  {" "}and <Link href="/admin/payments">{s.submitted} {s.submitted === 1 ? "payment" : "payments"} to review</Link>
+                </>
+              ) : null}
+              .
+            </>
+          ) : s.submitted ? (
+            <Link href="/admin/payments">
+              {s.submitted} {s.submitted === 1 ? "payment" : "payments"} to review.
+            </Link>
+          ) : (
+            "Nothing waiting for you right now."
+          )}
+        </p>
       </div>
 
-      <dl className={styles.totals}>
-        {STATUSES.map((s) => (
-          <div key={s} className={styles.total} data-status={s} data-active={status === s}>
-            <dt className={styles.totalLabel}>
-              <Link href={status === s ? "/admin" : `/admin?status=${s}`}>{STATUS_LABELS[s]}</Link>
-            </dt>
-            <dd className={styles.totalNumber}>{totals[s]}</dd>
-          </div>
-        ))}
-        <div className={styles.total} data-active={!status}>
-          <dt className={styles.totalLabel}>
-            <Link href="/admin">Everyone</Link>
-          </dt>
-          <dd className={styles.totalNumber}>{total}</dd>
-        </div>
-      </dl>
-
-      <section className={styles.tableSection} aria-labelledby="table-heading">
-        <h2 id="table-heading" className="visually-hidden">
-          Attendee list
+      <section aria-labelledby="stats-heading">
+        <h2 id="stats-heading" className="visually-hidden">
+          Numbers
         </h2>
-        <Filters q={q} status={status ?? ""} />
-        <p className={styles.resultCount} aria-live="polite">
-          {error
-            ? "Couldn't load the list. Reload the page."
-            : `Showing ${rows.length} ${rows.length === 1 ? "person" : "people"}${status ? ` with status ${STATUS_LABELS[status]}` : ""}${q ? ` matching “${q}”` : ""}.`}
-        </p>
-        {rows.length ? (
-          <AttendeeTable rows={rows} />
-        ) : (
-          <div className={styles.empty}>
-            {q || status ? (
-              <p>
-                No one matches. <Link href="/admin">Clear the search and filter</Link>.
-              </p>
-            ) : (
-              <p>
-                No one yet. Share the event link, or <Link href="/admin/invites">add people to the invite list</Link>.
-              </p>
-            )}
+        <div className={styles.stats}>
+          <div className={`${styles.stat} ${styles.statWide}`}>
+            <span className={styles.statLabel}>Total collected (payments marked paid)</span>
+            <span className={styles.statNumber}>{formatPeso(Number(s.collected))}</span>
           </div>
-        )}
+          {cards.map((c) =>
+            c.href ? (
+              <Link key={c.label} href={c.href} className={styles.stat}>
+                <span className={styles.statLabel}>{c.label}</span>
+                <span className={styles.statNumber}>{c.value}</span>
+              </Link>
+            ) : (
+              <div key={c.label} className={styles.stat}>
+                <span className={styles.statLabel}>{c.label}</span>
+                <span className={styles.statNumber}>{c.value}</span>
+              </div>
+            ),
+          )}
+        </div>
+      </section>
+
+      <section className={styles.chartSection} aria-labelledby="chart-heading">
+        <h2 id="chart-heading" className={styles.sectionTitle}>
+          Registrations over time
+        </h2>
+        <RegistrationsChart data={s.by_day} today={manilaParts(new Date().toISOString()).date} />
       </section>
     </>
   );

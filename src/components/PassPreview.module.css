@@ -1,45 +1,28 @@
 .preview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
-  gap: clamp(28px, 4vw, 56px);
-  align-items: end;
+  gap: 48px;
+  align-items: center;
 }
 
 .fields {
   display: grid;
-  gap: 24px;
-  align-content: end;
-}
-
-.fields :global(.field + .field) {
-  margin-top: 0;
+  align-content: start;
+  max-width: 440px;
 }
 
 .action {
+  margin-top: 32px;
   justify-self: start;
 }
 
 .passSide {
-  --pass-ground: var(--sky);
-  transform: rotate(2deg);
-  transform-origin: 50% 0;
-  transition: transform var(--t-med) var(--ease-out);
+  display: grid;
+  justify-items: center;
 }
 
-.preview:focus-within .passSide {
-  transform: rotate(0deg);
-}
-
-@media (max-width: 699px) {
+@media (min-width: 860px) {
   .preview {
-    grid-template-columns: 1fr;
-  }
-  .passSide {
-    order: -1;
-    max-width: 300px;
-    transform: none;
-  }
-  .action {
-    justify-self: stretch;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
   }
 }

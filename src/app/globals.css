@@ -1,38 +1,86 @@
 /* ==========================================================================
-   Tokens: sky ground, navy ink, one orange accent. Switzer for everything.
+   Neon Christmas (see DESIGN.md). Black, crimson and bone fields; acid green
+   for actions, cyan for live data, violet only as a hard offset edge.
+   Big Shoulders Display for display, Chakra Petch for everything you read.
+   Components use the semantic names (--bg, --text, --accent ...); a light
+   theme (.theme-light) swaps them for the admin work surfaces.
    ========================================================================== */
 :root {
-  --sky: #6bb4ee;
-  --sky-2: #80c0f1;
-  --sky-pale: #e8f3fc;
-  --paper: #ffffff;
-  --navy: #0e1822;
-  --navy-2: #16283a;
-  --navy-soft: #1b3d5c;
-  --orange: #ff5a1f;
-  --orange-hover: #ff7440;
-  --line: #6a8aa6;
-  --line-soft: #c9dbeb;
-  --danger: #b3261e;
-  --danger-pale: #fdecea;
-  --ok: #17663a;
-  --ok-pale: #e3f4e9;
+  --void: #000000;
+  --void-2: #121014;
+  --void-3: #1e1a21;
+  --signal: #e8183f;
+  --signal-deep: #a80f2d;
+  --bone: #faf5f7;
+  --bone-2: #ede4e8;
+  --ash: #b9b0b5;
+  --acid: #1df06b;
+  --acid-deep: #0fb84d;
+  --cyan: #19c8ff;
+  --uv: #8b3dff;
+  --ink: #000000;
+  --ink-soft: #5a4f56;
 
-  --font: "Switzer", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bg: var(--void);
+  --surface: var(--void-2);
+  --surface-2: var(--void-3);
+  --text: var(--bone);
+  --text-soft: var(--ash);
+  --accent: var(--acid);
+  --accent-hover: var(--acid-deep);
+  --accent-ink: var(--void);
+  --field-bg: var(--void-2);
+  --field-border: #6e6470;
+  --field-border-hover: var(--ash);
+  --focus: var(--acid);
+  --danger: var(--signal);
+  --danger-ink: var(--void);
+  --ok: var(--acid);
+  --info: var(--cyan);
 
-  --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+  --font-display: var(--font-shoulders), "Arial Narrow", Impact, sans-serif;
+  --font-text: var(--font-chakra), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
   --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
-  --step-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
-  --step-display: clamp(3.5rem, 1rem + 7.4vw, 8rem);
+  --step-lead: clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem);
+  --step-head: clamp(2.5rem, 1.5rem + 4.4vw, 5rem);
 
-  --margin: clamp(20px, 3.4vw, 48px);
-  --section-gap: clamp(88px, 12vw, 200px);
+  --margin: clamp(16px, 2.6vw, 32px);
+  --section-gap: clamp(96px, 13vw, 200px);
   --measure: 62ch;
 
+  /* Shape language */
+  --cut: 12px;
+  --offset: 6px;
+  --shard: 32px;
+  /* A section top torn into shards. Sections using it overlap the one above by --shard */
+  --shard-edge: polygon(0 18px, 7% 4px, 15% 28px, 26% 0, 38% 24px, 51% 6px, 63% 32px, 76% 2px, 88% 22px, 100% 6px, 100% 100%, 0 100%);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.1 -0.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --t-fast: 160ms;
+  --t-fast: 120ms;
   --t-med: 420ms;
+}
+
+/* Light work surfaces: admin screens */
+.theme-light {
+  --bg: var(--bone);
+  --surface: #ffffff;
+  --surface-2: var(--bone-2);
+  --text: var(--void);
+  --text-soft: var(--ink-soft);
+  --accent: var(--acid);
+  --accent-hover: var(--acid-deep);
+  --accent-ink: var(--void);
+  --field-bg: #ffffff;
+  --field-border: #8d828a;
+  --field-border-hover: var(--ink-soft);
+  --focus: var(--void);
+  --danger: var(--signal-deep);
+  --danger-ink: var(--bone);
+  --ok: #0a6b2e;
+  --info: #0a5f7a;
 }
 
 /* ==========================================================================
@@ -48,17 +96,17 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-behavior: smooth;
+  background: var(--void);
 }
 
 body {
   margin: 0;
-  background: var(--sky);
-  color: var(--navy);
-  font-family: var(--font);
+  min-height: 100svh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
   font-size: var(--step-body);
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-  font-feature-settings: "ss01" on;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -78,12 +126,19 @@ blockquote {
 }
 
 h1,
-h2,
-h3 {
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 0.88;
   text-wrap: balance;
+}
+
+h3 {
+  font-family: var(--font-text);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 p {
@@ -104,8 +159,22 @@ svg {
 
 a {
   color: inherit;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.2em;
+  text-decoration-color: var(--acid);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
+  transition: color var(--t-fast) ease;
+}
+
+a:hover {
+  color: var(--acid);
+}
+
+.theme-light a {
+  text-decoration-color: currentColor;
+}
+
+.theme-light a:hover {
+  color: var(--ink-soft);
 }
 
 button,
@@ -118,17 +187,13 @@ textarea {
 }
 
 ::selection {
-  background: var(--navy);
-  color: var(--sky);
+  background: var(--acid);
+  color: var(--void);
 }
 
 :focus-visible {
-  outline: 3px solid var(--navy);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
-}
-
-.on-dark :focus-visible {
-  outline-color: var(--paper);
 }
 
 .tabular {
@@ -152,8 +217,8 @@ textarea {
   left: var(--margin);
   top: -100px;
   z-index: 100;
-  background: var(--navy);
-  color: var(--paper);
+  background: var(--acid);
+  color: var(--void);
   padding: 12px 16px;
 }
 
@@ -162,38 +227,93 @@ textarea {
 }
 
 /* ==========================================================================
-   Buttons: one shape (square), one accent fill
+   Shape utilities
+   ========================================================================== */
+
+/* Cut two opposite corners */
+.cut {
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+}
+
+/* ==========================================================================
+   Buttons: cut corners, flat fill, a violet block behind that the button
+   slides onto when pressed. The fill and the block are pseudo-elements so the
+   focus outline on the button itself is never clipped.
    ========================================================================== */
 .btn {
+  --btn-bg: var(--accent);
+  --btn-ink: var(--accent-ink);
+  --cut: 8px;
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   min-height: 52px;
+  margin: 0 var(--offset) var(--offset) 0;
   padding: 0 28px;
-  border: 2px solid transparent;
-  border-radius: 0;
-  background: var(--orange);
-  color: var(--navy);
+  border: 0;
+  background: none;
+  color: var(--btn-ink);
   font-size: var(--step-body);
   font-weight: 600;
-  letter-spacing: -0.01em;
   line-height: 1.1;
   text-decoration: none;
   cursor: pointer;
   transition:
-    background-color var(--t-fast) ease,
     transform var(--t-fast) var(--ease-out),
     color var(--t-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 
+.btn::before,
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) ease;
+}
+
+.btn::before {
+  z-index: -1;
+  background: var(--btn-bg);
+}
+
+.btn::after {
+  z-index: -2;
+  background: var(--uv);
+  transform: translate(var(--offset), var(--offset));
+}
+
 .btn:hover {
-  background: var(--orange-hover);
+  color: var(--btn-ink);
+  --btn-bg: var(--accent-hover);
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: translate(var(--offset), var(--offset));
+}
+
+.btn:active::after {
+  transform: none;
 }
 
 .btn[disabled],
@@ -204,40 +324,40 @@ textarea {
 }
 
 .btn-quiet {
-  background: transparent;
-  border-color: currentColor;
-  color: inherit;
+  --btn-bg: var(--bg);
+  --btn-ink: var(--text);
+}
+
+/* The outline is drawn inside the cut shape */
+.btn-quiet::before {
+  box-shadow: inset 0 0 0 2px currentColor;
 }
 
 .btn-quiet:hover {
-  background: var(--navy);
-  border-color: var(--navy);
-  color: var(--paper);
+  --btn-bg: var(--text);
+  --btn-ink: var(--bg);
 }
 
-.on-dark .btn-quiet:hover {
-  background: var(--paper);
-  border-color: var(--paper);
-  color: var(--navy);
+.btn-danger {
+  --btn-bg: var(--danger);
+  --btn-ink: var(--danger-ink);
 }
 
-.btn-ink {
-  background: var(--navy);
-  color: var(--paper);
-}
-
-.btn-ink:hover {
-  background: var(--navy-soft);
+.btn-danger:hover {
+  --btn-bg: var(--signal-deep);
+  --btn-ink: var(--bone);
 }
 
 .btn-small {
+  --cut: 6px;
+  --offset: 4px;
   min-height: 40px;
   padding: 0 16px;
   font-size: var(--step-small);
 }
 
 .btn-block {
-  width: 100%;
+  width: calc(100% - var(--offset));
 }
 
 .text-button {
@@ -246,18 +366,23 @@ textarea {
   padding: 4px 0;
   font-weight: 600;
   text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.2em;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
   cursor: pointer;
   transition: color var(--t-fast) ease;
 }
 
 .text-button:hover {
-  color: var(--navy-soft);
+  color: var(--accent);
+}
+
+.theme-light .text-button {
+  text-decoration-color: currentColor;
 }
 
 /* ==========================================================================
-   Form fields
+   Form fields: cut corners; focus is drawn inside so the cut can't clip it
    ========================================================================== */
 .field {
   display: grid;
@@ -275,99 +400,142 @@ textarea {
 
 .label-optional {
   font-weight: 400;
-  color: var(--navy-soft);
+  color: var(--text-soft);
 }
 
 .hint {
   font-size: var(--step-small);
-  color: var(--navy-soft);
+  color: var(--text-soft);
   line-height: 1.45;
 }
 
 .input,
-.select {
+.select,
+.textarea {
+  --cut: 8px;
   width: 100%;
   min-height: 56px;
   padding: 12px 16px;
-  border: 2px solid var(--line);
+  border: 2px solid var(--field-border);
   border-radius: 0;
-  background: var(--paper);
+  background: var(--field-bg);
+  color: var(--text);
   font-size: var(--step-body);
   line-height: 1.3;
-  transition: border-color var(--t-fast) ease;
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+  transition:
+    border-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
   -webkit-appearance: none;
   appearance: none;
 }
 
+.textarea {
+  min-height: 120px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 .select {
   padding-right: 48px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%230e1822' stroke-width='2'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23b9b0b5' stroke-width='2'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 18px center;
   cursor: pointer;
 }
 
 .input:hover,
-.select:hover {
-  border-color: var(--navy-soft);
+.select:hover,
+.textarea:hover {
+  border-color: var(--field-border-hover);
 }
 
 .input:focus,
-.select:focus {
-  border-color: var(--navy);
-  outline: 3px solid var(--navy);
-  outline-offset: 0;
+.select:focus,
+.textarea:focus {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 2px var(--focus);
+  outline: none;
 }
 
-.input[aria-invalid="true"] {
+.input[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
   border-color: var(--danger);
 }
 
 .error {
-  color: var(--danger);
   font-size: var(--step-small);
   font-weight: 600;
   line-height: 1.4;
+  padding: 6px 10px;
+  background: var(--danger);
+  color: var(--danger-ink);
+  justify-self: start;
 }
 
 .check {
+  --cut: 8px;
   display: grid;
   grid-template-columns: 28px 1fr;
   gap: 14px;
   align-items: start;
   padding: 18px 20px;
-  background: var(--sky-pale);
+  background: var(--surface-2);
   cursor: pointer;
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
   transition: background-color var(--t-fast) ease;
 }
 
 .check:hover {
-  background: #d9ebfa;
+  background: var(--surface);
 }
 
 .check input {
-  width: 26px;
-  height: 26px;
-  margin: 0;
-  accent-color: var(--navy);
+  width: 24px;
+  height: 24px;
+  margin: 2px 0 0;
+  accent-color: var(--acid);
   cursor: pointer;
 }
 
 .check-text {
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.check-text small {
-  display: block;
-  margin-top: 4px;
-  font-size: var(--step-small);
-  font-weight: 400;
-  color: var(--navy-soft);
+  line-height: 1.45;
 }
 
 .check[data-invalid="true"] {
-  background: var(--danger-pale);
+  box-shadow: inset 6px 0 0 var(--danger);
+}
+
+/* A message strip with a coloured block on the left */
+.notice {
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px 14px 24px;
+  background: var(--surface);
+  box-shadow: inset 6px 0 0 var(--info);
+  line-height: 1.5;
+}
+
+.notice[data-tone="error"] {
+  box-shadow: inset 6px 0 0 var(--danger);
+}
+
+.notice[data-tone="ok"] {
+  box-shadow: inset 6px 0 0 var(--ok);
 }
 
 /* Honeypot: off-screen for people, visible to naive bots */
@@ -381,32 +549,16 @@ textarea {
 }
 
 /* ==========================================================================
-   Sample-details strip
-   ========================================================================== */
-.sample-strip {
-  background: var(--navy);
-  color: var(--paper);
-  font-size: var(--step-small);
-  padding: 10px var(--margin);
-  line-height: 1.4;
-}
-
-.sample-strip strong {
-  color: var(--orange);
-  font-weight: 600;
-}
-
-/* ==========================================================================
    Motion: content is always visible without script; with script, parts of
    each section rise in once as they enter.
    ========================================================================== */
 .js [data-reveal] {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(20px);
   transition:
-    opacity 700ms var(--ease-out),
-    transform 700ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 80ms);
+    opacity 600ms var(--ease-out),
+    transform 600ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
 }
 
 .js [data-reveal].is-in {

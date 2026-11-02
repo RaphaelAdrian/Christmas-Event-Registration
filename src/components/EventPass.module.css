@@ -1,123 +1,145 @@
-/* A lanyard pass: navy head, white body, orange band. The slot is cut in the
-   colour of whatever it hangs on (--pass-ground). */
+/* The pass: a black ticket with cut corners, an acid stripe across the top,
+   the parol at the corner and a violet block behind (DESIGN.md §6) */
 .pass {
+  --cut: 16px;
   container-type: inline-size;
   position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  width: 100%;
-  max-width: 340px;
-  aspect-ratio: 54 / 86;
-  margin: 0;
-  border-radius: 18px;
-  background: var(--paper);
-  color: var(--navy);
+  grid-template-rows: auto 1fr;
+  width: calc(100% - var(--offset));
+  max-width: 360px;
+  margin: 0 var(--offset) var(--offset) 0;
+  color: var(--bone);
+}
+
+/* The violet block behind */
+.pass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--uv);
+  transform: translate(var(--offset), var(--offset));
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+}
+
+/* The card itself */
+.pass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--void-2);
+  box-shadow: inset 0 6px 0 var(--acid);
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
 }
 
 .large {
-  max-width: 400px;
+  max-width: 420px;
 }
 
-.slot {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  width: 22%;
-  height: 12px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: var(--pass-ground, var(--sky));
-  z-index: 1;
-}
-
-.head {
-  display: grid;
-  gap: 6px;
-  padding: 48px 8% 22px;
-  border-radius: 18px 18px 0 0;
-  background: var(--navy);
-  color: var(--paper);
+.stub {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 26px 7% 4px;
 }
 
 .event {
-  font-size: var(--step-lead);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 9cqi, 2.25rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.9;
 }
 
-.when {
-  font-size: var(--step-small);
-  color: #b9d9f5;
+.parol {
+  flex: none;
+  width: 40px;
+  color: var(--acid);
+  --parol-core: var(--bone);
 }
 
 .body {
-  display: flex;
-  flex-direction: column;
-  padding: 9% 8% 7%;
-  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 20px 7% 28px;
+  min-height: 250px;
 }
 
 .name {
-  font-size: clamp(28px, 11.5cqi, 46px);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 0.98;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 15cqi, 3.5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.88;
   overflow-wrap: anywhere;
-  transition: color var(--t-fast) ease;
 }
 
 .company {
-  margin-top: 12px;
   font-size: var(--step-body);
-  font-weight: 500;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.job {
-  margin-top: 2px;
-  font-size: clamp(14px, 4.6cqi, 17px);
-  color: var(--navy-soft);
+  color: var(--ash);
   overflow-wrap: anywhere;
 }
 
 .placeholder {
-  color: #5a748a;
+  color: #918890;
 }
 
-.foot {
+.facts {
   display: grid;
-  gap: 2px;
-  margin-top: auto;
-  padding-top: 18px;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 16px 12px;
+  margin-top: 26px;
 }
 
-.refLabel {
+.facts dt {
   font-size: var(--step-small);
-  color: var(--navy-soft);
+  color: var(--ash);
 }
 
-.ref {
-  font-size: clamp(26px, 10cqi, 40px);
+.facts dd {
+  font-size: var(--step-body);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.facts .wide {
+  grid-column: 1 / -1;
+}
+
+.facts .wide dd {
+  white-space: normal;
+}
+
+.code {
+  color: var(--cyan);
 }
 
 .note {
-  margin-top: 8px;
+  margin-top: 18px;
+  padding: 10px 12px 10px 16px;
+  background: var(--void-3);
+  box-shadow: inset 4px 0 0 var(--cyan);
   font-size: var(--step-small);
-  font-weight: 500;
-  color: var(--navy-soft);
-}
-
-.band {
-  padding: 14px 8%;
-  border-radius: 0 0 18px 18px;
-  background: var(--orange);
-  color: var(--navy);
-  font-size: clamp(16px, 5.4cqi, 20px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  line-height: 1.4;
 }

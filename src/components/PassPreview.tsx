@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { EventPass } from "./EventPass";
+import { EventPass, type PassEvent } from "./EventPass";
 import styles from "./PassPreview.module.css";
 
 /** Home page: type a name, watch the pass fill in, then carry it into the form. */
-export function PassPreview({ open }: { open: boolean }) {
+export function PassPreview({ event, open }: { event: PassEvent; open: boolean }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -53,7 +53,7 @@ export function PassPreview({ open }: { open: boolean }) {
         ) : null}
       </div>
       <div className={styles.passSide}>
-        <EventPass name={name} />
+        <EventPass event={event} name={name} />
       </div>
     </div>
   );

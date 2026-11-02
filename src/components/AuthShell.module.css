@@ -1,0 +1,33 @@
+.page {
+  --pass-ground: var(--void);
+  min-height: 100svh;
+  background: var(--void);
+}
+
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 20px var(--margin) 0;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1.1;
+  text-decoration: none;
+}
+
+.main {
+  display: grid;
+  gap: 24px;
+  max-width: 520px;
+  padding: clamp(40px, 8vw, 104px) var(--margin) clamp(64px, 10vw, 128px);
+}
+
+.wide {
+  max-width: 1200px;
+}

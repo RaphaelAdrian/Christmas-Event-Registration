@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
-import { isStatus, STATUS_LABELS, type AttendeeStatus } from "@/lib/statuses";
+import { REGISTRATION_LABELS, type RegistrationStatus } from "@/lib/statuses";
 import { inviteSchema } from "@/lib/validation";
 import { parseCsv, parseXlsx, rowsToInvites } from "@/lib/invite-import";
 import { lastNameKey, nameKey } from "@/lib/names";
@@ -10,33 +10,12 @@ import { lastNameKey, nameKey } from "@/lib/names";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function refresh() {
-  revalidatePath("/admin");
-  revalidatePath("/admin/invites");
-}
-
-/** Change one person's status (e.g. mark as Paid). */
-export async function updateStatus(
-  id: string,
-  status: AttendeeStatus,
-): Promise<{ ok: true; paidAt: string | null } | { ok: false; error: string }> {
-  const { supabase } = await requireAdmin();
-  if (!UUID_RE.test(id) || !isStatus(status)) return { ok: false, error: "That change isn't valid." };
-
-  const { data, error } = await supabase
-    .from("attendees")
-    .update({ status })
-    .eq("id", id)
-    .select("id, paid_at")
-    .maybeSingle();
-
-  if (error || !data) return { ok: false, error: "Couldn't save the status. Reload the page and try again." };
-  refresh();
-  return { ok: true, paidAt: data.paid_at as string | null };
+  revalidatePath("/admin", "layout");
 }
 
 export type InviteState = { error: string; message: string; key: number };
 
-type Person = { first_name: string; last_name: string; email: string | null; status: AttendeeStatus };
+type Person = { first_name: string; last_name: string; email: string | null; registration_status: RegistrationStatus };
 type Supabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
 /** Everyone already in the table, to spot duplicates by email or by name. */
@@ -45,7 +24,7 @@ async function loadPeople(supabase: Supabase): Promise<Person[] | null> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from("attendees")
-      .select("first_name, last_name, email, status")
+      .select("first_name, last_name, email, registration_status")
       .range(from, from + 999);
     if (error) return null;
     people.push(...((data ?? []) as Person[]));
@@ -92,7 +71,7 @@ export async function addInvite(_prev: InviteState, formData: FormData): Promise
   if (dup) {
     const who = `${dup.first_name} ${dup.last_name}`.trim() || dup.email;
     return {
-      error: `Already on the list: ${who} (${STATUS_LABELS[dup.status]}).`,
+      error: `Already on the list: ${who} (${REGISTRATION_LABELS[dup.registration_status]}).`,
       message: "",
       key: Date.now(),
     };
@@ -102,7 +81,7 @@ export async function addInvite(_prev: InviteState, formData: FormData): Promise
     first_name: person.firstName,
     last_name: person.lastName,
     email: person.email || null,
-    status: "invited",
+    registration_status: "invited",
   });
   if (error) return { error: "Couldn't add that person. Try again.", message: "", key: Date.now() };
 
@@ -172,7 +151,7 @@ export async function importInvites(_prev: ImportState, formData: FormData): Pro
       continue;
     }
     const p = parsed.data;
-    const person: Person = { first_name: p.firstName, last_name: p.lastName, email: p.email || null, status: "invited" };
+    const person: Person = { first_name: p.firstName, last_name: p.lastName, email: p.email || null, registration_status: "invited" };
     for (const k of personKeys(p.firstName, p.lastName, p.email || null)) inFile.set(k, person);
     fresh.push(p);
   }
@@ -181,7 +160,7 @@ export async function importInvites(_prev: ImportState, formData: FormData): Pro
     first_name: p.firstName,
     last_name: p.lastName,
     email: p.email || null,
-    status: "invited" as const,
+    registration_status: "invited" as const,
   }));
 
   for (let i = 0; i < toInsert.length; i += 500) {
@@ -213,7 +192,7 @@ export async function removeInvite(id: string): Promise<{ ok: boolean; error?: s
     .from("attendees")
     .delete()
     .eq("id", id)
-    .eq("status", "invited")
+    .eq("registration_status", "invited")
     .select("id");
   if (error || !data?.length) return { ok: false, error: "Only people who haven't registered can be removed." };
   refresh();
